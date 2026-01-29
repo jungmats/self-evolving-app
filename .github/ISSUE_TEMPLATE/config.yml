@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/owner/repo/blob/main/docs/self-evolving-app.md
+    about: Check the documentation for usage guides and troubleshooting
+  - name: Discussions
+    url: https://github.com/owner/repo/discussions
+    about: Ask questions and discuss ideas with the community

@@ -1,0 +1,104 @@
+name: Investigation Request
+description: Request investigation of a system issue (typically created by monitoring)
+title: "[INVESTIGATE] "
+labels: ["request:investigate", "source:monitor", "stage:triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is primarily used by the automated monitoring system, but can also be used for manual investigation requests.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Investigation Summary
+      description: Brief description of what needs to be investigated
+      placeholder: "Investigate recurring error in..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Urgency
+      description: How urgent is this investigation?
+      options:
+        - Critical - System stability at risk
+        - High - Affecting user experience
+        - Medium - Potential issue detected
+        - Low - Routine investigation
+    validations:
+      required: true
+
+  - type: textarea
+    id: symptoms
+    attributes:
+      label: Symptoms Observed
+      description: What symptoms or indicators triggered this investigation?
+      placeholder: |
+        - Error rate increased by X%
+        - Response time degraded
+        - Specific error messages appearing
+    validations:
+      required: true
+
+  - type: textarea
+    id: error_details
+    attributes:
+      label: Error Details
+      description: Specific error messages, stack traces, or monitoring data
+      placeholder: "Error signature: ..."
+      render: text
+    validations:
+      required: false
+
+  - type: input
+    id: first_occurrence
+    attributes:
+      label: First Occurrence
+      description: When was this issue first detected?
+      placeholder: "2024-01-15 14:30:00 UTC"
+    validations:
+      required: false
+
+  - type: input
+    id: frequency
+    attributes:
+      label: Frequency
+      description: How often is this occurring?
+      placeholder: "Every 5 minutes, 10 times per hour, etc."
+    validations:
+      required: false
+
+  - type: textarea
+    id: affected_components
+    attributes:
+      label: Affected Components
+      description: Which parts of the system are affected?
+      placeholder: |
+        - Web server
+        - Database
+        - Monitoring system
+        - Specific endpoints or functions
+    validations:
+      required: false
+
+  - type: textarea
+    id: monitoring_data
+    attributes:
+      label: Monitoring Data
+      description: Relevant metrics, logs, or monitoring information
+      placeholder: "Include relevant monitoring data, metrics, or log excerpts..."
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information for the investigation
+      placeholder: "Recent deployments, configuration changes, external factors..."
+    validations:
+      required: false

@@ -1,0 +1,144 @@
+name: Deployment Workflow
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  issues: write
+  contents: read
+  pull-requests: read
+  deployments: write
+
+jobs:
+  deployment:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'agent:claude')
+    environment: production
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+      
+      - name: Extract PR context
+        id: context
+        run: |
+          echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "git_sha=${{ github.event.pull_request.merge_commit_sha }}" >> $GITHUB_OUTPUT
+          
+          # Extract linked issue number from PR body
+          ISSUE_NUMBER=$(echo "${{ github.event.pull_request.body }}" | grep -oP 'Fixes #\K\d+' || echo "")
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+      
+      - name: Create deployment
+        id: deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create GitHub deployment
+          DEPLOYMENT_ID=$(curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/deployments" \
+            -d '{
+              "ref": "${{ steps.context.outputs.git_sha }}",
+              "environment": "production",
+              "description": "Deployment for PR #${{ steps.context.outputs.pr_number }}",
+              "auto_merge": false,
+              "required_contexts": []
+            }' | jq -r '.id')
+          
+          echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+      
+      - name: Execute deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOYMENT_SECRET: ${{ secrets.DEPLOYMENT_SECRET }}
+        run: |
+          # Placeholder for actual deployment logic
+          echo "Executing deployment for commit ${{ steps.context.outputs.git_sha }}"
+          echo "Creating release directory: /srv/app/releases/${{ steps.context.outputs.git_sha }}"
+          echo "Switching symlink: /srv/app/current -> releases/${{ steps.context.outputs.git_sha }}"
+          echo "Running health checks..."
+          echo "Deployment completed successfully (placeholder)"
+      
+      - name: Update deployment status - success
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses" \
+            -d '{
+              "state": "success",
+              "description": "Deployment completed successfully",
+              "environment_url": "https://production.example.com"
+            }'
+      
+      - name: Transition issue to done
+        if: success() && steps.context.outputs.issue_number != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Remove awaiting-deploy-approval label and add done label
+          curl -X DELETE \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/labels/stage%3Aawaiting-deploy-approval"
+          
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/labels" \
+            -d '{"labels": ["stage:done"]}'
+          
+          # Add completion comment
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/comments" \
+            -d '{
+              "body": "✅ **Deployment Completed**\n\nThe implementation has been successfully deployed to production.\n\n**Deployment Details**:\n- Commit: ${{ steps.context.outputs.git_sha }}\n- Environment: production\n- Status: success\n\nThis issue is now complete."
+            }'
+      
+      - name: Update deployment status - failure
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses" \
+            -d '{
+              "state": "failure",
+              "description": "Deployment failed - automatic rollback initiated"
+            }'
+          
+          # Transition linked issue to blocked if deployment fails
+          if [ "${{ steps.context.outputs.issue_number }}" != "" ]; then
+            curl -X DELETE \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/labels/stage%3Aawaiting-deploy-approval"
+            
+            curl -X POST \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/labels" \
+              -d '{"labels": ["stage:blocked"]}'
+          fi

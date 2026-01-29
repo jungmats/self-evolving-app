@@ -8,7 +8,7 @@ The implementation follows test-driven development principles, with small, rever
 
 ## Tasks
 
-- [-] 1. Web Server Foundation - Local Deployment
+- [x] 1. Web Server Foundation - Local Deployment
   - Set up Python FastAPI project structure with SQLAlchemy ORM
   - Configure development environment with testing framework (pytest + Hypothesis)
   - Create basic FastAPI server with health endpoint
@@ -16,7 +16,7 @@ The implementation follows test-driven development principles, with small, rever
   - _Requirements: 0.1, 14.1, 15.1_
   - **Test: Server runs locally and responds to health checks**
 
-- [ ] 2. Repository Bootstrap and GitHub Plumbing
+- [x] 2. Repository Bootstrap and GitHub Plumbing
   - Ensure GitHub labels exist (stage:*, request:*, source:*, priority:*, agent:*)
   - Add .github/ISSUE_TEMPLATE/* for structured issue creation
   - Configure workflow permissions and secrets placeholders

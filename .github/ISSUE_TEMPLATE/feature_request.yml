@@ -1,0 +1,92 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for the self-evolving application
+title: "[FEATURE] "
+labels: ["request:feature", "source:user", "stage:triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new feature! Please provide detailed information about your request.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: A clear and concise description of the feature you'd like to see
+      placeholder: "I would like to be able to..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Critical - Blocking current work
+        - High - Would significantly improve workflow
+        - Medium - Nice to have improvement
+        - Low - Minor enhancement
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve?
+      placeholder: "Currently, users cannot... This causes..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your preferred solution
+      placeholder: "I would like to see..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: "Alternative approaches could be..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: use_cases
+    attributes:
+      label: Use Cases
+      description: Describe specific scenarios where this feature would be useful
+      placeholder: |
+        1. When a user wants to...
+        2. In the case where...
+        3. For users who need to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What would make this feature complete from your perspective?
+      placeholder: |
+        - [ ] Users can...
+        - [ ] The system should...
+        - [ ] When X happens, then Y...
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, mockups, or examples
+      placeholder: "Add any other context about the feature request here..."
+    validations:
+      required: false
