@@ -94,7 +94,7 @@ The implementation follows test-driven development principles, with small, rever
     - Add Issue comment creation for workflow progress
     - Implement workflow run correlation with Trace_ID
     - _Requirements: 12.4, 3.2_
-    - **Test: State machine works (triage→plan→prioritize→stage:awaiting-implementation-approval) without real outcomes**
+    - **Test: State machine works (triage→plan→prioritize→stage:awaiting-implementation-approval) without real outcomes - but requires to attach plan as comment and change label to state:prioritize manually**
 
 - [ ] 6. Policy & Gate Component - Request Blocking
   - [ ] 6.1 Implement Policy & Gate Component data model
