@@ -14,6 +14,10 @@ from app.state_management import get_state_manager, RequestType, Source
 import uvicorn
 import os
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +73,10 @@ def health_check(db: Session = Depends(get_db)):
             return {
                 "status": "healthy",
                 "database": "connected",
-                "service": "self-evolving-app"
+                "service": "self-evolving-app",
+                "github_token_set": bool(os.getenv("GITHUB_TOKEN")),
+                "github_repository_set": bool(os.getenv("GITHUB_REPOSITORY")),
+                "github_repository": os.getenv("GITHUB_REPOSITORY")
             }
         else:
             return {
