@@ -27,6 +27,8 @@ def override_get_db():
 @pytest.fixture(scope="function")
 def test_db():
     """Create test database tables."""
+    # Import all models to ensure they're registered with Base
+    from app.database import Request, Submission
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)

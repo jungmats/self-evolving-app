@@ -46,6 +46,17 @@ jobs:
           echo "decision=allow" >> $GITHUB_OUTPUT
           echo "Policy gate evaluation: ALLOW (placeholder implementation)"
       
+      - name: Add workflow start comment
+        if: steps.policy.outputs.decision == 'allow'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python .github/scripts/workflow_transition.py progress \
+            ${{ steps.context.outputs.issue_id }} \
+            "triage" \
+            "started" \
+            "Policy gate evaluation passed, beginning triage analysis"
+      
       - name: Execute triage analysis
         if: steps.policy.outputs.decision == 'allow'
         env:
@@ -56,45 +67,37 @@ jobs:
           echo "Executing triage analysis for issue #${{ steps.context.outputs.issue_id }}"
           echo "Trace ID: ${{ steps.context.outputs.trace_id }}"
           
-          # Add triage comment (placeholder)
-          curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/comments" \
-            -d '{
-              "body": "🔍 **Triage Analysis** (Placeholder)\n\nTrace ID: `${{ steps.context.outputs.trace_id }}`\n\n**Status**: Triage completed\n**Next Stage**: Planning\n\n*This is a placeholder implementation. Full triage analysis will be implemented in later tasks.*"
-            }'
+          # Add triage analysis comment (placeholder implementation)
+          python .github/scripts/workflow_transition.py progress \
+            ${{ steps.context.outputs.issue_id }} \
+            "triage" \
+            "completed" \
+            "Triage analysis completed (placeholder). Issue assessed and ready for planning stage."
       
       - name: Transition to planning stage
         if: steps.policy.outputs.decision == 'allow'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Remove triage label and add plan label
-          curl -X DELETE \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/labels/stage%3Atriage"
-          
-          curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/labels" \
-            -d '{"labels": ["stage:plan"]}'
+          python .github/scripts/workflow_transition.py transition \
+            ${{ steps.context.outputs.issue_id }} \
+            "stage:triage" \
+            "stage:plan" \
+            "triage"
       
       - name: Handle policy block
         if: steps.policy.outputs.decision == 'block'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Transition to blocked state
-          curl -X DELETE \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/labels/stage%3Atriage"
+          python .github/scripts/workflow_transition.py transition \
+            ${{ steps.context.outputs.issue_id }} \
+            "stage:triage" \
+            "stage:blocked" \
+            "triage"
           
-          curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/labels" \
-            -d '{"labels": ["stage:blocked"]}'
+          python .github/scripts/workflow_transition.py progress \
+            ${{ steps.context.outputs.issue_id }} \
+            "triage" \
+            "blocked" \
+            "Policy gate blocked this request. Manual intervention required."

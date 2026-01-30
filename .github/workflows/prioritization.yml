@@ -46,6 +46,17 @@ jobs:
           echo "recommended_priority=priority:p2" >> $GITHUB_OUTPUT
           echo "Policy gate evaluation: ALLOW (placeholder implementation)"
       
+      - name: Add workflow start comment
+        if: steps.policy.outputs.decision == 'allow'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python .github/scripts/workflow_transition.py progress \
+            ${{ steps.context.outputs.issue_id }} \
+            "prioritization" \
+            "started" \
+            "Policy gate evaluation passed, beginning prioritization analysis"
+      
       - name: Execute prioritization analysis
         if: steps.policy.outputs.decision == 'allow'
         env:
@@ -55,52 +66,45 @@ jobs:
           # Placeholder for Claude prioritization analysis
           echo "Executing prioritization analysis for issue #${{ steps.context.outputs.issue_id }}"
           
-          # Add prioritization comment (placeholder)
-          curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/comments" \
-            -d '{
-              "body": "⚖️ **Prioritization Analysis** (Placeholder)\n\n**Expected User Value**: TBD\n**Effort Assessment**: TBD\n**Risk Analysis**: TBD\n**Recommended Priority**: ${{ steps.policy.outputs.recommended_priority }}\n\n*This is a placeholder implementation. Full prioritization analysis will be implemented in later tasks.*"
-            }'
+          # Add prioritization analysis comment (placeholder implementation)
+          python .github/scripts/workflow_transition.py progress \
+            ${{ steps.context.outputs.issue_id }} \
+            "prioritization" \
+            "completed" \
+            "Prioritization analysis completed (placeholder). Priority level assigned and ready for implementation approval."
       
       - name: Apply priority label and transition
         if: steps.policy.outputs.decision == 'allow'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Add priority label
+          # Add priority label using GitHub API directly (simpler for this step)
           curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/labels" \
             -d '{"labels": ["${{ steps.policy.outputs.recommended_priority }}"]}'
           
-          # Remove prioritize label and add awaiting-implementation-approval label
-          curl -X DELETE \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/labels/stage%3Aprioritize"
-          
-          curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/labels" \
-            -d '{"labels": ["stage:awaiting-implementation-approval"]}'
+          # Transition to awaiting implementation approval
+          python .github/scripts/workflow_transition.py transition \
+            ${{ steps.context.outputs.issue_id }} \
+            "stage:prioritize" \
+            "stage:awaiting-implementation-approval" \
+            "prioritization"
       
       - name: Handle policy block
         if: steps.policy.outputs.decision == 'block'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Transition to blocked state
-          curl -X DELETE \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/labels/stage%3Aprioritize"
+          python .github/scripts/workflow_transition.py transition \
+            ${{ steps.context.outputs.issue_id }} \
+            "stage:prioritize" \
+            "stage:blocked" \
+            "prioritization"
           
-          curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/labels" \
-            -d '{"labels": ["stage:blocked"]}'
+          python .github/scripts/workflow_transition.py progress \
+            ${{ steps.context.outputs.issue_id }} \
+            "prioritization" \
+            "blocked" \
+            "Policy gate blocked this request. Manual intervention required."
