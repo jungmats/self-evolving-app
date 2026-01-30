@@ -9,8 +9,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import create_tables, get_db, Submission, generate_trace_id
 from app.models import BugReportRequest, FeatureRequestRequest, RequestResponse, StatusResponse
+from app.github_client import get_github_client, GitHubClientError
+from app.state_management import get_state_manager, RequestType, Source
 import uvicorn
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -89,7 +94,7 @@ def submit_bug_report(bug_report: BugReportRequest, db: Session = Depends(get_db
         # Generate unique trace ID
         trace_id = generate_trace_id()
         
-        # Create submission record
+        # Create submission record first (for local tracking)
         submission = Submission(
             trace_id=trace_id,
             request_type="bug",
@@ -103,15 +108,55 @@ def submit_bug_report(bug_report: BugReportRequest, db: Session = Depends(get_db
         db.commit()
         db.refresh(submission)
         
-        return RequestResponse(
-            success=True,
-            trace_id=trace_id,
-            message="Bug report submitted successfully",
-            github_issue_id=None  # Will be set when GitHub issue is created
-        )
+        # Create GitHub Issue
+        try:
+            github_client = get_github_client()
+            state_manager = get_state_manager(github_client)
+            
+            # Ensure required labels exist
+            state_manager.ensure_repository_labels()
+            
+            # Create GitHub Issue with proper state management
+            github_issue_number = state_manager.create_issue_with_initial_state(
+                title=bug_report.title,
+                description=bug_report.description,
+                request_type=RequestType.BUG,
+                source=Source.USER,
+                trace_id=trace_id,
+                severity=bug_report.severity
+            )
+            
+            # Update submission with GitHub Issue ID
+            submission.github_issue_id = github_issue_number
+            submission.status = "submitted"
+            db.commit()
+            
+            logger.info(f"Created bug report Issue #{github_issue_number} with Trace_ID: {trace_id}")
+            
+            return RequestResponse(
+                success=True,
+                trace_id=trace_id,
+                message="Bug report submitted successfully and GitHub Issue created",
+                github_issue_id=github_issue_number
+            )
+            
+        except GitHubClientError as e:
+            # GitHub creation failed, but local submission exists
+            submission.status = "failed"
+            db.commit()
+            
+            logger.error(f"GitHub Issue creation failed for Trace_ID {trace_id}: {str(e)}")
+            
+            return RequestResponse(
+                success=False,
+                trace_id=trace_id,
+                message=f"Bug report saved locally but GitHub Issue creation failed: {str(e)}",
+                github_issue_id=None
+            )
         
     except Exception as e:
         db.rollback()
+        logger.error(f"Failed to submit bug report: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to submit bug report: {str(e)}")
 
 
@@ -122,7 +167,7 @@ def submit_feature_request(feature_request: FeatureRequestRequest, db: Session =
         # Generate unique trace ID
         trace_id = generate_trace_id()
         
-        # Create submission record
+        # Create submission record first (for local tracking)
         submission = Submission(
             trace_id=trace_id,
             request_type="feature",
@@ -136,15 +181,55 @@ def submit_feature_request(feature_request: FeatureRequestRequest, db: Session =
         db.commit()
         db.refresh(submission)
         
-        return RequestResponse(
-            success=True,
-            trace_id=trace_id,
-            message="Feature request submitted successfully",
-            github_issue_id=None  # Will be set when GitHub issue is created
-        )
+        # Create GitHub Issue
+        try:
+            github_client = get_github_client()
+            state_manager = get_state_manager(github_client)
+            
+            # Ensure required labels exist
+            state_manager.ensure_repository_labels()
+            
+            # Create GitHub Issue with proper state management
+            github_issue_number = state_manager.create_issue_with_initial_state(
+                title=feature_request.title,
+                description=feature_request.description,
+                request_type=RequestType.FEATURE,
+                source=Source.USER,
+                trace_id=trace_id,
+                priority=feature_request.priority
+            )
+            
+            # Update submission with GitHub Issue ID
+            submission.github_issue_id = github_issue_number
+            submission.status = "submitted"
+            db.commit()
+            
+            logger.info(f"Created feature request Issue #{github_issue_number} with Trace_ID: {trace_id}")
+            
+            return RequestResponse(
+                success=True,
+                trace_id=trace_id,
+                message="Feature request submitted successfully and GitHub Issue created",
+                github_issue_id=github_issue_number
+            )
+            
+        except GitHubClientError as e:
+            # GitHub creation failed, but local submission exists
+            submission.status = "failed"
+            db.commit()
+            
+            logger.error(f"GitHub Issue creation failed for Trace_ID {trace_id}: {str(e)}")
+            
+            return RequestResponse(
+                success=False,
+                trace_id=trace_id,
+                message=f"Feature request saved locally but GitHub Issue creation failed: {str(e)}",
+                github_issue_id=None
+            )
         
     except Exception as e:
         db.rollback()
+        logger.error(f"Failed to submit feature request: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to submit feature request: {str(e)}")
 
 
