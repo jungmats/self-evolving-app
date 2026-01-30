@@ -1,0 +1,47 @@
+{
+  "description": "Valid state machine transitions for the self-evolving app workflow",
+  "version": "1.0",
+  "transitions": {
+    "stage:triage": [
+      "stage:plan",
+      "stage:blocked"
+    ],
+    "stage:plan": [
+      "stage:prioritize",
+      "stage:blocked"
+    ],
+    "stage:prioritize": [
+      "stage:awaiting-implementation-approval"
+    ],
+    "stage:awaiting-implementation-approval": [
+      "stage:implement",
+      "stage:blocked"
+    ],
+    "stage:implement": [
+      "stage:pr-opened",
+      "stage:blocked"
+    ],
+    "stage:pr-opened": [
+      "stage:awaiting-deploy-approval"
+    ],
+    "stage:awaiting-deploy-approval": [
+      "stage:done",
+      "stage:blocked"
+    ],
+    "stage:blocked": [
+      "stage:triage"
+    ],
+    "stage:done": []
+  },
+  "initial_stage": "stage:triage",
+  "terminal_stages": [
+    "stage:done"
+  ],
+  "recovery_stages": [
+    "stage:blocked"
+  ],
+  "approval_gates": [
+    "stage:awaiting-implementation-approval",
+    "stage:awaiting-deploy-approval"
+  ]
+}
