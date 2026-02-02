@@ -8,7 +8,6 @@ and prioritization workflows.
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from sqlalchemy.orm import Session
 
 from claude_client_factory import get_claude_client, ClaudeClientProtocol, ClientType
 from claude_client import ClaudeClientError
@@ -39,7 +38,6 @@ class WorkflowEngine:
         claude_client: Optional[ClaudeClientProtocol] = None,
         policy_component: Optional[PolicyGateComponent] = None,
         github_client: Optional[GitHubClient] = None,
-        db_session: Optional[Session] = None,
         preferred_client_type: Optional[ClientType] = None
     ):
         """
@@ -49,16 +47,14 @@ class WorkflowEngine:
             claude_client: Claude client (API or CLI)
             policy_component: Policy & Gate Component
             github_client: GitHub API client
-            db_session: Database session for audit trail
             preferred_client_type: Preferred Claude client type
         """
         self.claude_client = claude_client or get_claude_client(
             client_type=preferred_client_type,
             fallback_enabled=True
         )
-        self.policy_component = policy_component or get_policy_gate_component(db_session)
+        self.policy_component = policy_component or get_policy_gate_component()
         self.github_client = github_client or get_github_client()
-        self.db_session = db_session
     
     def execute_triage_workflow(
         self,
@@ -511,14 +507,12 @@ class WorkflowEngine:
 
 
 def get_workflow_engine(
-    db_session: Optional[Session] = None,
     preferred_client_type: Optional[ClientType] = None
 ) -> WorkflowEngine:
     """
     Factory function to create a configured WorkflowEngine instance.
     
     Args:
-        db_session: Database session for audit trail
         preferred_client_type: Preferred Claude client type
         
     Returns:
@@ -529,7 +523,6 @@ def get_workflow_engine(
     """
     try:
         return WorkflowEngine(
-            db_session=db_session,
             preferred_client_type=preferred_client_type
         )
     except Exception as e:
