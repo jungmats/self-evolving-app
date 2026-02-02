@@ -42,9 +42,25 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         run: |
-          # Placeholder for policy gate evaluation
-          echo "decision=allow" >> $GITHUB_OUTPUT
-          echo "Policy gate evaluation: ALLOW (placeholder implementation)"
+          # Install Python dependencies for policy evaluation
+          pip install pydantic sqlalchemy
+          
+          # Run policy gate evaluation
+          python .github/scripts/policy_gate_evaluation.py evaluate-stage \
+            --issue-id ${{ steps.context.outputs.issue_id }} \
+            --stage triage \
+            --add-comment \
+            --output-format github-actions
+          
+          # Capture the exit code to determine decision
+          POLICY_EXIT_CODE=$?
+          if [ $POLICY_EXIT_CODE -eq 0 ]; then
+            echo "decision=allow" >> $GITHUB_OUTPUT
+            echo "Policy gate evaluation: ALLOW"
+          else
+            echo "decision=block" >> $GITHUB_OUTPUT
+            echo "Policy gate evaluation: BLOCK/REVIEW_REQUIRED"
+          fi
       
       - name: Add workflow start comment
         if: steps.policy.outputs.decision == 'allow'
