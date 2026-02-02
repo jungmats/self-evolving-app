@@ -20,7 +20,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "app"))
 from policy_gate import PolicyGateComponent
 from models import StageContext, ChangeContext
 from github_client import GitHubClient, GitHubClientError
-from database import SessionLocal
 
 
 class PolicyGateEvaluator:
@@ -44,14 +43,12 @@ class PolicyGateEvaluator:
             repository=repository or os.getenv("GITHUB_REPOSITORY")
         )
         
-        # Create database session for policy component
-        self.db_session = SessionLocal()
-        self.policy_component = PolicyGateComponent(self.db_session)
+        # Create policy component (no database needed)
+        self.policy_component = PolicyGateComponent()
     
     def __del__(self):
-        """Clean up database session."""
-        if hasattr(self, 'db_session'):
-            self.db_session.close()
+        """Clean up resources."""
+        pass
     
     def extract_trace_id_from_issue(self, issue_number: int) -> Optional[str]:
         """

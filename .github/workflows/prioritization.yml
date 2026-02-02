@@ -68,7 +68,8 @@ jobs:
           
           policy_json=$(python3 .github/scripts/policy_gate_evaluation.py evaluate-stage \
             --stage=prioritize \
-            --issue-id=${{ github.event.issue.number }})
+            --issue-id=${{ github.event.issue.number }} \
+            --output-format=json)
           
           # Parse JSON response using jq
           decision=$(echo "$policy_json" | jq -r '.decision')
