@@ -123,19 +123,19 @@ The implementation follows test-driven development principles, with small, rever
     - _Requirements: 16.3_
     - **Test: Unjustified/unrelated submissions are blocked by policy checks**
 
-- [-] 7. Functional Workflows - Real Outcomes
-  - [ ] 7.1 Implement Claude API integration
+- [x] 7. Functional Workflows - Real Outcomes
+  - [x] 7.1 Implement Claude API integration
     - Create Claude client with constrained prompt handling
     - Add workflow-specific prompt templates
     - Implement response parsing and validation
     - _Requirements: 4.2, 5.2, 6.2_
 
-  - [ ] 7.2 Write contract test for Claude output structure
+  - [x] 7.2 Write contract test for Claude output structure
     - **Contract Test: Claude Workflow Outputs**
     - Test triage, planning, prioritization output schemas
     - **Validates: Requirements 4.3, 5.2, 6.2**
 
-  - [ ] 7.3 Implement functional workflow logic
+  - [x] 7.3 Implement functional workflow logic
     - Add real triage analysis with problem assessment
     - Create planning workflow with implementation plans
     - Implement prioritization with value/effort analysis
