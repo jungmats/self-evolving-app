@@ -24,6 +24,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
+      - name: Install Python dependencies
+        run: |
+          echo "📦 Installing Python dependencies for runner environment..."
+          echo "Python version: $(python3 --version)"
+          echo "Python path: $(which python3)"
+          echo "Architecture: $(uname -m)"
+          echo "Current working directory: $(pwd)"
+          echo "PYTHONPATH will be: ${{ github.workspace }}/app:${{ github.workspace }}"
+          
+          # Try to import pydantic first to see current state
+          echo "Testing current pydantic installation..."
+          python3 -c "import pydantic; print('Current pydantic version:', pydantic.__version__)" || echo "Pydantic not available or broken"
+          
+          # Install dependencies
+          python3 -m pip install --user -r requirements.txt --force-reinstall --no-cache-dir
+          
+          # Verify installation
+          echo "Verifying pydantic installation..."
+          python3 -c "import pydantic; print('Installed pydantic version:', pydantic.__version__)"
+          echo "✅ Dependencies installed successfully"
+      
       - name: Extract issue context
         id: context
         run: |
@@ -66,7 +87,7 @@ jobs:
         run: |
           echo "🛡️ Evaluating policy gate for triage stage..."
           
-          policy_json=$(python .github/scripts/policy_gate_evaluation.py evaluate \
+          policy_json=$(python3 .github/scripts/policy_gate_evaluation.py evaluate \
             --stage=triage \
             --issue-id=${{ github.event.issue.number }})
           
@@ -96,7 +117,7 @@ jobs:
         run: |
           echo "🔍 Starting repository-aware triage workflow for issue #${{ github.event.issue.number }}"
           
-          python .github/scripts/functional_workflow_executor.py triage \
+          python3 .github/scripts/functional_workflow_executor.py triage \
             --issue-id=${{ github.event.issue.number }} \
             --prompt="$CONSTRUCTED_PROMPT"
       
@@ -108,13 +129,13 @@ jobs:
         run: |
           echo "❌ Triage blocked by policy gate"
           
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "triage" \
             "blocked" \
             "Policy gate blocked: $POLICY_REASON"
           
-          python .github/scripts/workflow_transition.py transition \
+          python3 .github/scripts/workflow_transition.py transition \
             ${{ github.event.issue.number }} \
             "stage:triage" \
             "stage:blocked" \
@@ -128,7 +149,7 @@ jobs:
         run: |
           echo "⚠️ Triage requires human review"
           
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "triage" \
             "review_required" \
@@ -144,13 +165,13 @@ jobs:
           NEXT_STAGE="${{ steps.triage.outputs.next_stage }}"
           
           if [ "$NEXT_STAGE" = "plan" ]; then
-            python .github/scripts/workflow_transition.py transition \
+            python3 .github/scripts/workflow_transition.py transition \
               ${{ github.event.issue.number }} \
               "stage:triage" \
               "stage:plan" \
               "triage"
           elif [ "$NEXT_STAGE" = "blocked" ]; then
-            python .github/scripts/workflow_transition.py transition \
+            python3 .github/scripts/workflow_transition.py transition \
               ${{ github.event.issue.number }} \
               "stage:triage" \
               "stage:blocked" \
@@ -166,13 +187,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
-          python .github/scripts/workflow_transition.py transition \
+          python3 .github/scripts/workflow_transition.py transition \
             ${{ github.event.issue.number }} \
             "stage:triage" \
             "stage:blocked" \
             "triage"
           
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "triage" \
             "blocked" \
@@ -184,7 +205,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "triage" \
             "review_required" \
@@ -199,14 +220,14 @@ jobs:
           echo "❌ Triage workflow failed - adding detailed error comment to issue"
           
           # Create detailed error comment
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "triage" \
             "failed" \
             "Triage Workflow Failed - Repository-aware workflow execution failed during triage analysis. Check GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
           # Transition to blocked state
-          python .github/scripts/workflow_transition.py transition \
+          python3 .github/scripts/workflow_transition.py transition \
             ${{ github.event.issue.number }} \
             "stage:triage" \
             "stage:blocked" \
