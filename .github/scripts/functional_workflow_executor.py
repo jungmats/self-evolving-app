@@ -34,7 +34,6 @@ class FunctionalWorkflowExecutor:
         """Initialize the functional workflow executor."""
         self.github_token = os.getenv("GITHUB_TOKEN")
         self.repository = os.getenv("GITHUB_REPOSITORY")
-        self.claude_api_key = os.getenv("CLAUDE_API_KEY")
         
         # Determine Claude client type from environment
         client_type_env = os.getenv("CLAUDE_CLIENT_TYPE", "").lower()
@@ -58,9 +57,7 @@ class FunctionalWorkflowExecutor:
         if not self.repository:
             missing_vars.append("GITHUB_REPOSITORY")
         
-        # Claude API key is only required for API client
-        if self.preferred_client_type == ClientType.API and not self.claude_api_key:
-            missing_vars.append("CLAUDE_API_KEY")
+        # Claude CLI doesn't require API key - it uses local authentication
         
         if missing_vars:
             error_msg = f"❌ Missing required environment variables: {', '.join(missing_vars)}"
@@ -170,7 +167,7 @@ class FunctionalWorkflowExecutor:
         except WorkflowEngineError as e:
             error_msg = f"❌ Workflow engine error: {str(e)}"
             print(error_msg)
-            print("💡 This usually indicates a Claude API or policy evaluation issue")
+            print("💡 This usually indicates a Claude CLI or policy evaluation issue")
             raise
         except Exception as e:
             error_msg = f"❌ Unexpected error in triage workflow: {str(e)}"
@@ -271,7 +268,7 @@ class FunctionalWorkflowExecutor:
         except WorkflowEngineError as e:
             error_msg = f"❌ Workflow engine error: {str(e)}"
             print(error_msg)
-            print("💡 This usually indicates a Claude API or policy evaluation issue")
+            print("💡 This usually indicates a Claude CLI or policy evaluation issue")
             raise
         except Exception as e:
             error_msg = f"❌ Unexpected error in planning workflow: {str(e)}"
@@ -374,7 +371,7 @@ class FunctionalWorkflowExecutor:
         except WorkflowEngineError as e:
             error_msg = f"❌ Workflow engine error: {str(e)}"
             print(error_msg)
-            print("💡 This usually indicates a Claude API or policy evaluation issue")
+            print("💡 This usually indicates a Claude CLI or policy evaluation issue")
             raise
         except Exception as e:
             error_msg = f"❌ Unexpected error in prioritization workflow: {str(e)}"

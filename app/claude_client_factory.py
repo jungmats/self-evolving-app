@@ -85,9 +85,9 @@ class ClaudeClientFactory:
         except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
             pass
         
-        # Default to API client
-        logger.info("Defaulting to Claude API client")
-        return ClientType.API
+        # Default to CLI client (preferred)
+        logger.info("Defaulting to Claude CLI client")
+        return ClientType.CLI
     
     def create_client(
         self,
@@ -188,18 +188,16 @@ class ClaudeClientFactory:
         if client_type == ClientType.API:
             return {
                 "type": "api",
-                "name": "Claude API Client",
-                "description": "Direct API integration with Claude",
+                "name": "Claude API Client (DEPRECATED)",
+                "description": "Legacy API integration - use Claude CLI instead",
                 "features": [
-                    "Direct API access",
+                    "Direct API access (deprecated)",
                     "Structured response parsing",
                     "Rate limiting support",
                     "Authentication handling"
                 ],
                 "requirements": [
-                    "CLAUDE_API_KEY environment variable",
-                    "Internet connectivity",
-                    "API quota availability"
+                    "DEPRECATED - Use Claude CLI instead"
                 ]
             }
         elif client_type == ClientType.CLI:

@@ -75,7 +75,6 @@ jobs:
 ### Allowed Connections
 
 ✅ **GitHub API**: `api.github.com`, `github.com`
-✅ **Claude API**: `api.anthropic.com`
 ✅ **Package Registries**: `pypi.org`, `registry.npmjs.org` (if needed)
 
 ### Blocked Connections
@@ -92,9 +91,6 @@ jobs:
 # Allow GitHub
 iptables -A OUTPUT -d github.com -j ACCEPT
 iptables -A OUTPUT -d api.github.com -j ACCEPT
-
-# Allow Claude API
-iptables -A OUTPUT -d api.anthropic.com -j ACCEPT
 
 # Allow DNS
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
@@ -138,7 +134,7 @@ chmod 640 ~/actions-runner/_diag/*.log
 
 ```bash
 # Minimal required environment
-GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx  # Repository-scoped token
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx  # Repository-scoped token (if not in shell)
 PYTHONPATH=/path/to/repo/app:/path/to/repo
 REPO_ROOT=/path/to/repo
 ```
@@ -148,7 +144,7 @@ REPO_ROOT=/path/to/repo
 ❌ **Personal Access Tokens with broad scope**
 ❌ **Organization secrets**
 ❌ **Database credentials**
-❌ **Third-party API keys (except Claude)**
+❌ **Third-party API keys**
 
 ### Secret Management
 

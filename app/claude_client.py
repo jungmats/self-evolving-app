@@ -1,7 +1,10 @@
-"""Claude API client for the Self-Evolving Web Application.
+"""Claude client for the Self-Evolving Web Application.
 
-This module provides a client for interacting with Claude API with constrained prompt handling,
-workflow-specific prompt templates, and response parsing and validation.
+This module provides a legacy Claude API client that is now deprecated.
+The system has migrated to Claude CLI integration for enhanced repository context.
+
+This module is maintained for backward compatibility but will direct users
+to use Claude CLI integration instead.
 """
 
 import os
@@ -27,7 +30,7 @@ class ClaudeResponseValidationError(ClaudeClientError):
 
 @dataclass
 class ClaudeResponse:
-    """Structured response from Claude API."""
+    """Structured response from Claude (legacy - use Claude CLI instead)."""
     content: str
     usage: Dict[str, int]
     model: str
@@ -45,34 +48,31 @@ class ClaudeResponse:
 
 class ClaudeClient:
     """
-    Claude API client with constrained prompt handling and response validation.
+    Legacy Claude API client - DEPRECATED.
     
-    Provides methods for workflow-specific Claude interactions with proper error handling,
-    response parsing, and validation against expected output formats.
+    This client is no longer supported. Please use Claude CLI integration instead
+    which provides superior repository context awareness and enhanced capabilities.
     """
     
-    def __init__(self, api_key: Optional[str] = None, model: str = "claude-3-sonnet-20240229", timeout: int = 60):
+    def __init__(self, model: str = "claude-3-sonnet-20240229", timeout: int = 60):
         """
         Initialize Claude client.
         
         Args:
-            api_key: Claude API key (defaults to CLAUDE_API_KEY env var)
             model: Claude model to use
             timeout: Request timeout in seconds
         """
-        self.api_key = api_key or os.getenv("CLAUDE_API_KEY")
         self.model = model
         self.timeout = timeout
-        self.base_url = "https://api.anthropic.com/v1"
+        # Legacy API URL - no longer used
+        self.base_url = "https://api.anthropic.com/v1"  # DEPRECATED
         
-        if not self.api_key:
-            raise ClaudeClientError("Claude API key is required. Set CLAUDE_API_KEY environment variable.")
-        
-        self.headers = {
-            "Content-Type": "application/json",
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01"
-        }
+        # Claude API client is deprecated - use Claude CLI instead
+        raise ClaudeClientError(
+            "Claude API client is no longer supported. "
+            "Please use Claude CLI integration instead. "
+            "The system will automatically use Claude CLI when available."
+        )
     
     def generate_response(
         self,
@@ -82,84 +82,14 @@ class ClaudeClient:
         system_prompt: Optional[str] = None
     ) -> ClaudeResponse:
         """
-        Generate response from Claude API.
+        Generate response from Claude (DEPRECATED - use Claude CLI instead).
         
-        Args:
-            prompt: User prompt to send to Claude
-            max_tokens: Maximum tokens in response
-            temperature: Response randomness (0.0 = deterministic, 1.0 = creative)
-            system_prompt: Optional system prompt for context
-            
-        Returns:
-            ClaudeResponse with content and metadata
-            
-        Raises:
-            ClaudeClientError: If API request fails
+        This method is deprecated. The system now uses Claude CLI integration
+        which provides superior repository context and enhanced capabilities.
         """
-        try:
-            # Prepare messages
-            messages = [{"role": "user", "content": prompt}]
-            
-            # Prepare request payload
-            payload = {
-                "model": self.model,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "messages": messages
-            }
-            
-            if system_prompt:
-                payload["system"] = system_prompt
-            
-            # Make API request
-            response = requests.post(
-                f"{self.base_url}/messages",
-                headers=self.headers,
-                json=payload,
-                timeout=self.timeout
-            )
-            
-            # Handle API errors
-            if response.status_code != 200:
-                error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
-                error_msg = error_data.get('error', {}).get('message', f"HTTP {response.status_code}")
-                raise ClaudeClientError(f"Claude API error: {error_msg}")
-            
-            # Parse response
-            response_data = response.json()
-            
-            # Extract content from response
-            content = ""
-            if "content" in response_data and response_data["content"]:
-                # Handle both single content and array of content blocks
-                if isinstance(response_data["content"], list):
-                    content = "".join(block.get("text", "") for block in response_data["content"] if block.get("type") == "text")
-                else:
-                    content = response_data["content"]
-            
-            # Extract usage information
-            usage = response_data.get("usage", {})
-            
-            return ClaudeResponse(
-                content=content.strip(),
-                usage=usage,
-                model=response_data.get("model", self.model),
-                timestamp=datetime.utcnow()
-            )
-            
-        except requests.exceptions.Timeout:
-            raise ClaudeClientError(f"❌ Claude API request timed out after {self.timeout} seconds. Check network connectivity.")
-        except requests.exceptions.RequestException as e:
-            if "401" in str(e) or "authentication" in str(e).lower():
-                raise ClaudeClientError("❌ Claude API authentication failed. Check your CLAUDE_API_KEY.")
-            elif "429" in str(e) or "rate limit" in str(e).lower():
-                raise ClaudeClientError("❌ Claude API rate limit exceeded. Please try again later.")
-            else:
-                raise ClaudeClientError(f"❌ Claude API request failed: {str(e)}")
-        except json.JSONDecodeError as e:
-            raise ClaudeClientError(f"❌ Failed to parse Claude API response: {str(e)}")
-        except Exception as e:
-            raise ClaudeClientError(f"❌ Unexpected error calling Claude API: {str(e)}")
+        raise ClaudeClientError(
+            "Claude API client is deprecated. Please use Claude CLI integration instead."
+        )
     
     def triage_analysis(self, constrained_prompt: str, trace_id: str) -> Dict[str, Any]:
         """

@@ -61,9 +61,9 @@ Create a `.env` file in the runner directory:
 
 ```bash
 # Runner environment configuration
-PYTHONPATH=/path/to/your/repo/app:/path/to/your/repo
-GITHUB_TOKEN=your_github_token
-CLAUDE_API_KEY=your_claude_api_key
+PYTHONPATH=/path/to/your/self-evolving-app/app:/path/to/your/self-evolving-app
+REPO_ROOT=/path/to/your/self-evolving-app
+# GITHUB_TOKEN=your_github_token  # Only if not in shell environment
 ```
 
 ### 4. Start Runner
@@ -161,7 +161,6 @@ git status
 
 3. **Claude CLI Issues**
    - Verify Claude CLI authentication
-   - Check API key configuration
    - Test Claude CLI outside of workflows
 
 4. **Permission Errors**

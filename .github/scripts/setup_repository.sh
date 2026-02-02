@@ -105,7 +105,6 @@ echo "   • Production environment (without required reviewers)"
 echo
 echo "🔧 Next steps:"
 echo "   1. Configure required secrets in repository settings:"
-echo "      - CLAUDE_API_KEY (for Claude Code integration)"
 echo "      - DEPLOYMENT_SECRET (for deployment authentication)"
 echo "   2. Set up branch protection rules for 'main' branch"
 echo "   3. Test the system by creating an issue with labels"

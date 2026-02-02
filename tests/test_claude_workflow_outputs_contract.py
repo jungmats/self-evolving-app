@@ -143,7 +143,7 @@ class TestClaudeWorkflowOutputsContract:
 
     @pytest.fixture
     def mock_claude_response(self):
-        """Create mock Claude API response for testing."""
+        """Create mock Claude CLI response for testing."""
         return {
             "content": [
                 {
@@ -159,8 +159,14 @@ class TestClaudeWorkflowOutputsContract:
         }
 
     def create_claude_client(self):
-        """Create a ClaudeClient instance for testing."""
-        return ClaudeClient(api_key="test-key")
+        """Create a ClaudeClient instance for testing (deprecated)."""
+        # This will raise an error since Claude API client is deprecated
+        # Tests should use Claude CLI client instead
+        try:
+            return ClaudeClient()
+        except ClaudeClientError:
+            # Expected - Claude API client is deprecated
+            return None
 
     def test_triage_output_schema_matches_golden_file(self, expected_output_schemas, mock_claude_response):
         """

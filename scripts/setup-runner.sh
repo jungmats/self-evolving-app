@@ -142,25 +142,33 @@ setup_runner() {
 setup_environment() {
     log_info "Setting up environment..."
     
-    # Create environment file template
-    cat > "$RUNNER_DIR/.env" << EOF
-# Runner Environment Configuration
-# Update these values with your actual credentials
+    log_info "Environment variables can be set globally in your shell profile:"
+    log_info "Add these to ~/.zshrc or ~/.bashrc:"
+    echo ""
+    echo "export GITHUB_TOKEN=your_github_token_here"
+    echo "export PYTHONPATH=$(pwd)/app:$(pwd)"
+    echo "export REPO_ROOT=$(pwd)"
+    echo ""
+    log_info "Then run: source ~/.zshrc"
+    echo ""
+    log_info "Alternatively, you can create a local .env file (optional):"
+    
+    # Create environment file template (optional)
+    cat > "$RUNNER_DIR/.env.example" << EOF
+# Runner Environment Configuration (OPTIONAL)
+# These can be set globally in ~/.zshrc instead
 
-# GitHub token for API access
-GITHUB_TOKEN=your_github_token_here
+# GitHub token for API access (only if not already in shell environment)
+# GITHUB_TOKEN=your_github_token_here
 
-# Claude API key (if needed)
-CLAUDE_API_KEY=your_claude_api_key_here
-
-# Python path for the repository
+# Python path for the repository (update with actual project path)
 PYTHONPATH=$(pwd)/app:$(pwd)
 
-# Repository root
+# Repository root (update with actual project path)
 REPO_ROOT=$(pwd)
 EOF
     
-    log_warn "Please update $RUNNER_DIR/.env with your actual credentials"
+    log_info "Optional .env example created at $RUNNER_DIR/.env.example"
 }
 
 # Install Python dependencies
@@ -246,9 +254,13 @@ main() {
     log_info "Runner setup completed successfully!"
     echo ""
     echo "Next steps:"
-    echo "1. Update $RUNNER_DIR/.env with your credentials"
-    echo "2. Start the runner: cd $RUNNER_DIR && ./run.sh"
-    echo "3. Or install as service: cd $RUNNER_DIR && ./install-service.sh"
+    echo "1. Set environment variables in ~/.zshrc:"
+    echo "   export GITHUB_TOKEN=your_token"
+    echo "   export PYTHONPATH=/path/to/self-evolving-app/app:/path/to/self-evolving-app"
+    echo "   export REPO_ROOT=/path/to/self-evolving-app"
+    echo "2. Run: source ~/.zshrc"
+    echo "3. Start the runner: cd $RUNNER_DIR && ./run.sh"
+    echo "4. Or install as service: cd $RUNNER_DIR && ./install-service.sh"
     echo ""
     echo "Runner directory: $RUNNER_DIR"
     echo "Configuration: Repository-scoped with labels [self-hosted, solops-local]"
