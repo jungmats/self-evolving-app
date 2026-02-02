@@ -72,6 +72,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "📋 Starting functional planning workflow for issue #${{ steps.context.outputs.issue_id }}"
           python .github/scripts/functional_workflow_executor.py planning \
@@ -81,6 +82,7 @@ jobs:
         if: steps.planning.outputs.success == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           # Transition to prioritization stage
           python .github/scripts/workflow_transition.py transition \
@@ -93,6 +95,7 @@ jobs:
         if: steps.planning.outputs.blocked == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python .github/scripts/workflow_transition.py transition \
             ${{ steps.context.outputs.issue_id }} \
@@ -110,6 +113,7 @@ jobs:
         if: steps.planning.outputs.review_required == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python .github/scripts/workflow_transition.py progress \
             ${{ steps.context.outputs.issue_id }} \
@@ -121,6 +125,7 @@ jobs:
         if: failure()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "❌ Planning workflow failed - adding detailed error comment to issue"
           
