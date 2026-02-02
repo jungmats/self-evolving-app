@@ -68,7 +68,7 @@ jobs:
         run: |
           echo "🛡️ Evaluating policy gate for implementation stage..."
           
-          policy_json=$(python .github/scripts/policy_gate_evaluation.py evaluate \
+          policy_json=$(python3 .github/scripts/policy_gate_evaluation.py evaluate \
             --stage=implement \
             --issue-id=${{ github.event.issue.number }})
           
@@ -95,13 +95,13 @@ jobs:
         run: |
           echo "❌ Implementation blocked by policy gate"
           
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "implementation" \
             "blocked" \
             "Policy gate blocked: $POLICY_REASON"
           
-          python .github/scripts/workflow_transition.py transition \
+          python3 .github/scripts/workflow_transition.py transition \
             ${{ github.event.issue.number }} \
             "stage:implement" \
             "stage:blocked" \
@@ -115,7 +115,7 @@ jobs:
         run: |
           echo "⚠️ Implementation requires human review"
           
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "implementation" \
             "review_required" \
@@ -139,7 +139,7 @@ jobs:
           echo "🔧 Starting repository-aware implementation for issue #${{ github.event.issue.number }}"
           
           # Execute Claude CLI implementation with repository context
-          python .github/scripts/functional_workflow_executor.py implementation \
+          python3 .github/scripts/functional_workflow_executor.py implementation \
             --issue-id=${{ github.event.issue.number }} \
             --prompt="$CONSTRUCTED_PROMPT"
           
@@ -207,7 +207,7 @@ Generated with Claude CLI for enhanced context awareness and code quality."
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           # Transition to PR opened stage
-          python .github/scripts/workflow_transition.py transition \
+          python3 .github/scripts/workflow_transition.py transition \
             ${{ github.event.issue.number }} \
             "stage:implement" \
             "stage:pr-opened" \
@@ -222,14 +222,14 @@ Generated with Claude CLI for enhanced context awareness and code quality."
           echo "❌ Implementation workflow failed - adding detailed error comment to issue"
           
           # Create detailed error comment
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "implementation" \
             "failed" \
             "Implementation Workflow Failed - Repository-aware workflow execution failed during code generation. Check GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
           # Transition to blocked state
-          python .github/scripts/workflow_transition.py transition \
+          python3 .github/scripts/workflow_transition.py transition \
             ${{ github.event.issue.number }} \
             "stage:implement" \
             "stage:blocked" \

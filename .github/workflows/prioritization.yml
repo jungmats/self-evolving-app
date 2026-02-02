@@ -66,7 +66,7 @@ jobs:
         run: |
           echo "🛡️ Evaluating policy gate for prioritization stage..."
           
-          policy_json=$(python .github/scripts/policy_gate_evaluation.py evaluate \
+          policy_json=$(python3 .github/scripts/policy_gate_evaluation.py evaluate \
             --stage=prioritize \
             --issue-id=${{ github.event.issue.number }})
           
@@ -96,7 +96,7 @@ jobs:
         run: |
           echo "⚖️ Starting repository-aware prioritization workflow for issue #${{ github.event.issue.number }}"
           
-          python .github/scripts/functional_workflow_executor.py prioritization \
+          python3 .github/scripts/functional_workflow_executor.py prioritization \
             --issue-id=${{ github.event.issue.number }} \
             --prompt="$CONSTRUCTED_PROMPT"
       
@@ -108,13 +108,13 @@ jobs:
         run: |
           echo "❌ Prioritization blocked by policy gate"
           
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "prioritization" \
             "blocked" \
             "Policy gate blocked: $POLICY_REASON"
           
-          python .github/scripts/workflow_transition.py transition \
+          python3 .github/scripts/workflow_transition.py transition \
             ${{ github.event.issue.number }} \
             "stage:prioritize" \
             "stage:blocked" \
@@ -128,7 +128,7 @@ jobs:
         run: |
           echo "⚠️ Prioritization requires human review"
           
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "prioritization" \
             "review_required" \
@@ -150,7 +150,7 @@ jobs:
             -d "{\"labels\": [\"$PRIORITY_LABEL\"]}"
           
           # Transition to awaiting implementation approval
-          python .github/scripts/workflow_transition.py transition \
+          python3 .github/scripts/workflow_transition.py transition \
             ${{ github.event.issue.number }} \
             "stage:prioritize" \
             "stage:awaiting-implementation-approval" \
@@ -162,13 +162,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
-          python .github/scripts/workflow_transition.py transition \
+          python3 .github/scripts/workflow_transition.py transition \
             ${{ github.event.issue.number }} \
             "stage:prioritize" \
             "stage:blocked" \
             "prioritization"
           
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "prioritization" \
             "blocked" \
@@ -180,7 +180,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "prioritization" \
             "review_required" \
@@ -195,14 +195,14 @@ jobs:
           echo "❌ Prioritization workflow failed - adding detailed error comment to issue"
           
           # Create detailed error comment
-          python .github/scripts/workflow_transition.py progress \
+          python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "prioritization" \
             "failed" \
             "Prioritization Workflow Failed - Repository-aware workflow execution failed during priority assessment. Check GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
           # Transition to blocked state
-          python .github/scripts/workflow_transition.py transition \
+          python3 .github/scripts/workflow_transition.py transition \
             ${{ github.event.issue.number }} \
             "stage:prioritize" \
             "stage:blocked" \
