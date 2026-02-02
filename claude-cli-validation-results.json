@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-02-02T16:13:48.784377",
+  "summary": {
+    "total_tests": 6,
+    "passed": 4,
+    "failed": 1,
+    "skipped": 1
+  },
+  "detailed_results": {
+    "client_availability": {
+      "available_types": [
+        "cli"
+      ],
+      "cli_available": true,
+      "api_available": false,
+      "status": "passed"
+    },
+    "client_factory": {
+      "status": "passed",
+      "auto_detected_client": "ClaudeCLIClient",
+      "fallback_enabled": true
+    },
+    "cli_client_basic": {
+      "status": "failed",
+      "error": "Claude CLI command failed: Unknown error",
+      "error_type": "ClaudeCLIError"
+    },
+    "repository_context": {
+      "status": "passed",
+      "average_context_score": 0.0,
+      "individual_scores": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "context_quality": "limited"
+    },
+    "workflow_engine_integration": {
+      "status": "passed",
+      "client_type": "ClaudeCLIClient",
+      "has_policy_component": true,
+      "has_github_client": true,
+      "cli_integration": true
+    },
+    "api_vs_cli_comparison": {
+      "status": "skipped",
+      "reason": "Only 1 client type(s) available"
+    }
+  }
+}

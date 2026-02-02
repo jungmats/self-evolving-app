@@ -13,22 +13,16 @@ permissions:
 jobs:
   planning:
     name: Plan Implementation
-    runs-on: ubuntu-latest
-    if: contains(github.event.label.name, 'stage:plan') && github.event.action == 'labeled'
+    runs-on: [self-hosted, solops-local]
+    if: |
+      github.event.label.name == 'stage:plan' && 
+      github.event.action == 'labeled' &&
+      github.event.issue.user.type != 'Bot' &&
+      github.repository_owner == github.actor
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
       
       - name: Extract issue context
         id: context
@@ -43,40 +37,102 @@ jobs:
           echo "Issue author: ${{ github.event.issue.user.login }}"
           echo "Label added: ${{ github.event.label.name }}"
           echo "Action: ${{ github.event.action }}"
+          echo "Repository owner: ${{ github.repository_owner }}"
+          echo "Actor: ${{ github.actor }}"
           
-          # Prevent workflow from running on issues created by bots or automation
+          # Additional security validation
           if [[ "${{ github.event.issue.user.type }}" == "Bot" ]]; then
             echo "❌ Skipping workflow - issue created by bot"
             exit 1
           fi
           
-          # Ensure this is actually a label addition event
           if [[ "${{ github.event.action }}" != "labeled" ]]; then
             echo "❌ Skipping workflow - not a label addition event"
             exit 1
           fi
           
-          echo "✅ Issue context validation passed"
-      
-      - name: Validate environment variables
-        run: |
-          if [ -z "${{ secrets.CLAUDE_API_KEY }}" ]; then
-            echo "❌ CLAUDE_API_KEY is not configured in repository secrets"
-            echo "💡 Add your Claude API key to: Settings → Secrets and variables → Actions"
+          if [[ "${{ github.event.label.name }}" != "stage:plan" ]]; then
+            echo "❌ Skipping workflow - incorrect label"
             exit 1
           fi
-          echo "✅ Environment variables validated"
+          
+          echo "✅ Issue context validation passed"
       
-      - name: Execute functional planning workflow
+      - name: Policy Gate Evaluation
+        id: policy
+        env:
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🛡️ Evaluating policy gate for planning stage..."
+          
+          policy_json=$(python .github/scripts/policy_gate_evaluation.py evaluate \
+            --stage=plan \
+            --issue-id=${{ github.event.issue.number }})
+          
+          # Parse JSON response using jq
+          decision=$(echo "$policy_json" | jq -r '.decision')
+          reason=$(echo "$policy_json" | jq -r '.reason')
+          constructed_prompt=$(echo "$policy_json" | jq -r '.constructed_prompt // ""')
+          
+          # Set environment variables for subsequent steps
+          echo "POLICY_DECISION=$decision" >> $GITHUB_ENV
+          echo "POLICY_REASON=$reason" >> $GITHUB_ENV
+          echo "CONSTRUCTED_PROMPT<<EOF" >> $GITHUB_ENV
+          echo "$constructed_prompt" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          echo "Policy decision: $decision"
+          echo "Policy reason: $reason"
+      
+      - name: Execute Planning with Claude CLI
         id: planning
+        if: env.POLICY_DECISION == 'allow'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+          CLAUDE_CLIENT_TYPE: cli
+          REPO_ROOT: ${{ github.workspace }}
+        run: |
+          echo "📋 Starting repository-aware planning workflow for issue #${{ github.event.issue.number }}"
+          
+          python .github/scripts/functional_workflow_executor.py planning \
+            --issue-id=${{ github.event.issue.number }} \
+            --prompt="$CONSTRUCTED_PROMPT"
+      
+      - name: Handle Policy Block
+        if: env.POLICY_DECISION == 'block'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
-          echo "📋 Starting functional planning workflow for issue #${{ steps.context.outputs.issue_id }}"
-          python .github/scripts/functional_workflow_executor.py planning \
-            --issue-id ${{ steps.context.outputs.issue_id }}
+          echo "❌ Planning blocked by policy gate"
+          
+          python .github/scripts/workflow_transition.py progress \
+            ${{ github.event.issue.number }} \
+            "planning" \
+            "blocked" \
+            "Policy gate blocked: $POLICY_REASON"
+          
+          python .github/scripts/workflow_transition.py transition \
+            ${{ github.event.issue.number }} \
+            "stage:plan" \
+            "stage:blocked" \
+            "planning"
+      
+      - name: Handle Policy Review Required
+        if: env.POLICY_DECISION == 'review_required'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+        run: |
+          echo "⚠️ Planning requires human review"
+          
+          python .github/scripts/workflow_transition.py progress \
+            ${{ github.event.issue.number }} \
+            "planning" \
+            "review_required" \
+            "Human review required: $POLICY_REASON"
       
       - name: Handle successful planning
         if: steps.planning.outputs.success == 'true'
@@ -86,7 +142,7 @@ jobs:
         run: |
           # Transition to prioritization stage
           python .github/scripts/workflow_transition.py transition \
-            ${{ steps.context.outputs.issue_id }} \
+            ${{ github.event.issue.number }} \
             "stage:plan" \
             "stage:prioritize" \
             "planning"
@@ -98,16 +154,16 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python .github/scripts/workflow_transition.py transition \
-            ${{ steps.context.outputs.issue_id }} \
+            ${{ github.event.issue.number }} \
             "stage:plan" \
             "stage:blocked" \
             "planning"
           
           python .github/scripts/workflow_transition.py progress \
-            ${{ steps.context.outputs.issue_id }} \
+            ${{ github.event.issue.number }} \
             "planning" \
             "blocked" \
-            "Policy gate blocked this request: ${{ steps.planning.outputs.reason }}"
+            "Planning analysis blocked: ${{ steps.planning.outputs.reason }}"
       
       - name: Handle review required
         if: steps.planning.outputs.review_required == 'true'
@@ -116,9 +172,9 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python .github/scripts/workflow_transition.py progress \
-            ${{ steps.context.outputs.issue_id }} \
+            ${{ github.event.issue.number }} \
             "planning" \
-            "blocked" \
+            "review_required" \
             "Human review required: ${{ steps.planning.outputs.reason }}"
       
       - name: Handle planning failure
@@ -131,14 +187,14 @@ jobs:
           
           # Create detailed error comment
           python .github/scripts/workflow_transition.py progress \
-            ${{ steps.context.outputs.issue_id }} \
+            ${{ github.event.issue.number }} \
             "planning" \
             "failed" \
-            "Planning Workflow Failed - Workflow execution failed during implementation planning. Check GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "Planning Workflow Failed - Repository-aware workflow execution failed during implementation planning. Check GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
           # Transition to blocked state
           python .github/scripts/workflow_transition.py transition \
-            ${{ steps.context.outputs.issue_id }} \
+            ${{ github.event.issue.number }} \
             "stage:plan" \
             "stage:blocked" \
             "planning"

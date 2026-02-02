@@ -10,7 +10,9 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from claude_client import ClaudeClient, ClaudeClientError, get_claude_client
+from claude_client_factory import get_claude_client, ClaudeClientProtocol, ClientType
+from claude_client import ClaudeClientError
+from claude_cli_client import ClaudeCLIError
 from policy_gate import PolicyGateComponent, get_policy_gate_component
 from github_client import GitHubClient, get_github_client
 from models import StageContext
@@ -34,21 +36,26 @@ class WorkflowEngine:
     
     def __init__(
         self,
-        claude_client: Optional[ClaudeClient] = None,
+        claude_client: Optional[ClaudeClientProtocol] = None,
         policy_component: Optional[PolicyGateComponent] = None,
         github_client: Optional[GitHubClient] = None,
-        db_session: Optional[Session] = None
+        db_session: Optional[Session] = None,
+        preferred_client_type: Optional[ClientType] = None
     ):
         """
         Initialize workflow engine.
         
         Args:
-            claude_client: Claude API client
+            claude_client: Claude client (API or CLI)
             policy_component: Policy & Gate Component
             github_client: GitHub API client
             db_session: Database session for audit trail
+            preferred_client_type: Preferred Claude client type
         """
-        self.claude_client = claude_client or get_claude_client()
+        self.claude_client = claude_client or get_claude_client(
+            client_type=preferred_client_type,
+            fallback_enabled=True
+        )
         self.policy_component = policy_component or get_policy_gate_component(db_session)
         self.github_client = github_client or get_github_client()
         self.db_session = db_session
@@ -147,8 +154,8 @@ class WorkflowEngine:
                 "trace_id": trace_id
             }
             
-        except ClaudeClientError as e:
-            logger.error(f"Claude API error in triage workflow: {str(e)}")
+        except (ClaudeClientError, ClaudeCLIError) as e:
+            logger.error(f"Claude error in triage workflow: {str(e)}")
             raise WorkflowEngineError(f"Triage analysis failed: {str(e)}")
         except Exception as e:
             logger.error(f"Unexpected error in triage workflow: {str(e)}")
@@ -253,8 +260,8 @@ class WorkflowEngine:
                 "trace_id": trace_id
             }
             
-        except ClaudeClientError as e:
-            logger.error(f"Claude API error in planning workflow: {str(e)}")
+        except (ClaudeClientError, ClaudeCLIError) as e:
+            logger.error(f"Claude error in planning workflow: {str(e)}")
             raise WorkflowEngineError(f"Planning analysis failed: {str(e)}")
         except Exception as e:
             logger.error(f"Unexpected error in planning workflow: {str(e)}")
@@ -363,8 +370,8 @@ class WorkflowEngine:
                 "trace_id": trace_id
             }
             
-        except ClaudeClientError as e:
-            logger.error(f"Claude API error in prioritization workflow: {str(e)}")
+        except (ClaudeClientError, ClaudeCLIError) as e:
+            logger.error(f"Claude error in prioritization workflow: {str(e)}")
             raise WorkflowEngineError(f"Prioritization analysis failed: {str(e)}")
         except Exception as e:
             logger.error(f"Unexpected error in prioritization workflow: {str(e)}")
@@ -503,12 +510,16 @@ class WorkflowEngine:
 """
 
 
-def get_workflow_engine(db_session: Optional[Session] = None) -> WorkflowEngine:
+def get_workflow_engine(
+    db_session: Optional[Session] = None,
+    preferred_client_type: Optional[ClientType] = None
+) -> WorkflowEngine:
     """
     Factory function to create a configured WorkflowEngine instance.
     
     Args:
         db_session: Database session for audit trail
+        preferred_client_type: Preferred Claude client type
         
     Returns:
         Configured WorkflowEngine instance
@@ -517,6 +528,9 @@ def get_workflow_engine(db_session: Optional[Session] = None) -> WorkflowEngine:
         WorkflowEngineError: If engine creation fails
     """
     try:
-        return WorkflowEngine(db_session=db_session)
+        return WorkflowEngine(
+            db_session=db_session,
+            preferred_client_type=preferred_client_type
+        )
     except Exception as e:
         raise WorkflowEngineError(f"Failed to create workflow engine: {str(e)}")

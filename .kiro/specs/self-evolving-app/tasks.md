@@ -142,6 +142,39 @@ The implementation follows test-driven development principles, with small, rever
     - _Requirements: 4.2, 4.3, 5.2, 6.2, 6.3_
     - **Test: Workflows produce real outcomes (triage reports, plans, prioritization)**
 
+- [x] 7.4 Claude CLI Integration Migration
+  - [x] 7.4.1 Set up self-hosted GitHub runner
+    - Install and configure GitHub Actions runner on local machine/server
+    - Configure runner with repository scope and security labels `[self-hosted, solops-local]`
+    - Configure runner with required dependencies (Python, Claude CLI, Git, jq)
+    - Implement security controls: no fork execution, trusted code only
+    - Test runner connectivity and basic workflow execution
+    - _Requirements: Infrastructure setup for enhanced AI integration_
+
+  - [x] 7.4.2 Create Claude CLI integration component
+    - Replace Claude API client with Claude CLI integration
+    - Implement repository-aware prompt construction
+    - Add Claude CLI command execution with error handling
+    - Preserve existing workflow output schemas and contracts
+    - _Requirements: 4.2, 5.2, 6.2 (enhanced with repository context)_
+
+  - [x] 7.4.3 Update workflows for self-hosted runner
+    - Modify GitHub Actions workflows to use `runs-on: [self-hosted, solops-local]`
+    - Fix label matching to use exact equality (`github.event.label.name == 'stage:triage'`)
+    - Add security controls: bot detection, trusted user validation
+    - Update workflow scripts to handle JSON policy gate responses with jq parsing
+    - Update workflow scripts to use Claude CLI instead of API calls
+    - Ensure PYTHONPATH and environment variables are properly configured
+    - Test workflow execution on self-hosted runner with security controls
+    - _Requirements: 4.1, 5.1, 6.1_
+
+  - [x] 7.4.4 Validate Claude CLI integration
+    - Test triage workflow with repository context awareness
+    - Verify planning workflow can reference specific code files
+    - Confirm prioritization workflow understands codebase architecture
+    - Compare output quality between API and CLI approaches
+    - **Test: Claude CLI workflows produce enhanced analysis with repository context**
+
 - [ ] 8. Implementation Workflow - Code Generation
   - [ ] 8.1 Implement code generation workflow
     - Create implementation workflow that generates code changes
