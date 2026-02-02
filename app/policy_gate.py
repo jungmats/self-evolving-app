@@ -11,8 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from sqlalchemy.orm import Session
 
-from app.models import StageContext, ChangeContext, PolicyDecisionModel
-from app.database import PolicyDecision, get_db
+from models import StageContext, ChangeContext, PolicyDecisionModel
+from database import PolicyDecision, get_db
 
 logger = logging.getLogger(__name__)
 

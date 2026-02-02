@@ -72,6 +72,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "⚖️ Starting functional prioritization workflow for issue #${{ steps.context.outputs.issue_id }}"
           python .github/scripts/functional_workflow_executor.py prioritization \
@@ -81,6 +82,7 @@ jobs:
         if: steps.prioritization.outputs.success == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           # Add priority label using GitHub API directly
           PRIORITY_LABEL="${{ steps.prioritization.outputs.recommended_priority }}"
@@ -102,6 +104,7 @@ jobs:
         if: steps.prioritization.outputs.blocked == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python .github/scripts/workflow_transition.py transition \
             ${{ steps.context.outputs.issue_id }} \
@@ -119,6 +122,7 @@ jobs:
         if: steps.prioritization.outputs.review_required == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python .github/scripts/workflow_transition.py progress \
             ${{ steps.context.outputs.issue_id }} \
@@ -130,6 +134,7 @@ jobs:
         if: failure()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "❌ Prioritization workflow failed - adding detailed error comment to issue"
           

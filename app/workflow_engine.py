@@ -10,10 +10,10 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from app.claude_client import ClaudeClient, ClaudeClientError, get_claude_client
-from app.policy_gate import PolicyGateComponent, get_policy_gate_component
-from app.github_client import GitHubClient, get_github_client
-from app.models import StageContext
+from claude_client import ClaudeClient, ClaudeClientError, get_claude_client
+from policy_gate import PolicyGateComponent, get_policy_gate_component
+from github_client import GitHubClient, get_github_client
+from models import StageContext
 
 logger = logging.getLogger(__name__)
 
