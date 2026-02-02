@@ -1,5 +1,6 @@
-name: Planning Workflow
+name: Issue Planning Workflow
 
+# ONLY trigger on issue label events - never on push/PR
 on:
   issues:
     types: [labeled]
@@ -13,7 +14,7 @@ jobs:
   planning:
     name: Plan Implementation
     runs-on: ubuntu-latest
-    if: contains(github.event.label.name, 'stage:plan')
+    if: contains(github.event.label.name, 'stage:plan') && github.event.action == 'labeled'
     
     steps:
       - name: Checkout repository
@@ -34,6 +35,28 @@ jobs:
         run: |
           echo "issue_id=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
           echo "issue_title=${{ github.event.issue.title }}" >> $GITHUB_OUTPUT
+      
+      - name: Validate issue context
+        run: |
+          echo "🔍 Validating issue context..."
+          echo "Issue number: ${{ github.event.issue.number }}"
+          echo "Issue author: ${{ github.event.issue.user.login }}"
+          echo "Label added: ${{ github.event.label.name }}"
+          echo "Action: ${{ github.event.action }}"
+          
+          # Prevent workflow from running on issues created by bots or automation
+          if [[ "${{ github.event.issue.user.type }}" == "Bot" ]]; then
+            echo "❌ Skipping workflow - issue created by bot"
+            exit 1
+          fi
+          
+          # Ensure this is actually a label addition event
+          if [[ "${{ github.event.action }}" != "labeled" ]]; then
+            echo "❌ Skipping workflow - not a label addition event"
+            exit 1
+          fi
+          
+          echo "✅ Issue context validation passed"
       
       - name: Validate environment variables
         run: |
@@ -106,24 +129,7 @@ jobs:
             ${{ steps.context.outputs.issue_id }} \
             "planning" \
             "failed" \
-            "❌ **Planning Workflow Failed**
-
-**Error**: Workflow execution failed during implementation planning
-**Possible Causes**:
-- Claude API authentication issues
-- Missing triage artifacts
-- Policy gate restrictions
-- Network connectivity problems
-
-**Troubleshooting**:
-1. Verify that triage stage completed successfully
-2. Check GitHub Actions logs for detailed error messages
-3. Ensure Claude API key is properly configured
-
-**Workflow Run**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-**Timestamp**: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-This issue has been moved to **stage:blocked** and requires manual intervention."
+            "Planning Workflow Failed - Workflow execution failed during implementation planning. Check GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
           # Transition to blocked state
           python .github/scripts/workflow_transition.py transition \
