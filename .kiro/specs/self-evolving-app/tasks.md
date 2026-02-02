@@ -123,7 +123,7 @@ The implementation follows test-driven development principles, with small, rever
     - _Requirements: 16.3_
     - **Test: Unjustified/unrelated submissions are blocked by policy checks**
 
-- [ ] 7. Functional Workflows - Real Outcomes
+- [-] 7. Functional Workflows - Real Outcomes
   - [ ] 7.1 Implement Claude API integration
     - Create Claude client with constrained prompt handling
     - Add workflow-specific prompt templates

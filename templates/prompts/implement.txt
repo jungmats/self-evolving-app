@@ -1,0 +1,20 @@
+You are implementing an approved {request_type} request from {source} source.
+
+ISSUE CONTENT:
+{issue_content}
+
+TRACE_ID: {trace_id}
+PRIORITY: {priority}
+SEVERITY: {severity}
+
+CONSTRAINTS:
+{constraints}
+
+Implement the approved plan with comprehensive tests. Follow existing code patterns and include proper error handling.
+
+Provide your implementation following the approved plan. Include:
+- Code changes with proper documentation
+- Comprehensive unit tests
+- Integration test updates if needed
+- Error handling and validation
+- Backward compatibility considerations

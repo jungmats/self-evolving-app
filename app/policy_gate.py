@@ -8,12 +8,18 @@ import json
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
+from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.models import StageContext, ChangeContext, PolicyDecisionModel
 from app.database import PolicyDecision, get_db
 
 logger = logging.getLogger(__name__)
+
+
+class TemplateLoadError(Exception):
+    """Raised when a required prompt template cannot be loaded."""
+    pass
 
 
 class PolicyGateComponent:
@@ -401,95 +407,117 @@ class PolicyGateComponent:
         }
     
     def _load_prompt_templates(self) -> Dict[str, str]:
-        """Load prompt templates for each stage."""
-        return {
-            "triage": """
-You are analyzing a {request_type} request from {source} source.
-
-ISSUE CONTENT:
-{issue_content}
-
-TRACE_ID: {trace_id}
-
-CONSTRAINTS:
-{constraints}
-
-Your task is to analyze this request and provide a structured triage report. Focus only on understanding the problem and providing clarification. Do not suggest implementations or code changes.
-
-Provide your analysis in the following format:
-- Problem Summary: Brief description of the issue
-- Suspected Cause: What might be causing this issue
-- Clarifying Questions: What additional information is needed
-- Recommendation: Should this proceed to planning stage or be blocked
-""",
-            "plan": """
-You are creating an implementation plan for a {request_type} request from {source} source.
-
-ISSUE CONTENT:
-{issue_content}
-
-TRACE_ID: {trace_id}
-PRIORITY: {priority}
-SEVERITY: {severity}
-
-CONSTRAINTS:
-{constraints}
-
-Create a detailed implementation plan without writing actual code. Focus on approach, design, and testing strategy.
-
-Provide your plan in the following format:
-- Proposed Approach: High-level implementation strategy
-- Affected Files: List of files that will need changes
-- Acceptance Criteria: How to verify the implementation works
-- Unit Test Plan: What tests need to be written
-- Risks and Considerations: Potential issues or complications
-- Effort Estimate: Time/complexity assessment
-""",
-            "prioritize": """
-You are assessing the priority of a {request_type} request from {source} source.
-
-ISSUE CONTENT:
-{issue_content}
-
-TRACE_ID: {trace_id}
-PRIORITY: {priority}
-SEVERITY: {severity}
-
-CONSTRAINTS:
-{constraints}
-
-Assess the priority of this request based on user value, effort, and risk. Do not make implementation decisions.
-
-Provide your assessment in the following format:
-- Expected User Value: How much this will benefit users
-- Implementation Effort: Complexity and time required
-- Risk Assessment: Potential risks of implementing or not implementing
-- Priority Recommendation: p0 (critical), p1 (high), or p2 (medium)
-- Justification: Reasoning for the priority level
-""",
-            "implement": """
-You are implementing an approved {request_type} request from {source} source.
-
-ISSUE CONTENT:
-{issue_content}
-
-TRACE_ID: {trace_id}
-PRIORITY: {priority}
-SEVERITY: {severity}
-
-CONSTRAINTS:
-{constraints}
-
-Implement the approved plan with comprehensive tests. Follow existing code patterns and include proper error handling.
-
-Provide your implementation following the approved plan. Include:
-- Code changes with proper documentation
-- Comprehensive unit tests
-- Integration test updates if needed
-- Error handling and validation
-- Backward compatibility considerations
-"""
-        }
+        """
+        Load prompt templates for each stage from template files.
+        
+        Raises:
+            TemplateLoadError: If any required template file is missing or cannot be loaded
+        """
+        templates = {}
+        template_dir = Path(__file__).parent.parent / "templates" / "prompts"
+        required_stages = ["triage", "plan", "prioritize", "implement"]
+        
+        # Validate template directory exists
+        if not template_dir.exists():
+            raise TemplateLoadError(
+                f"Template directory not found: {template_dir}. "
+                f"Create the directory and add template files for stages: {required_stages}"
+            )
+        
+        # Load templates from files - fail fast if any are missing
+        missing_templates = []
+        load_errors = []
+        
+        for stage in required_stages:
+            template_file = template_dir / f"{stage}.txt"
+            
+            if not template_file.exists():
+                missing_templates.append(str(template_file))
+                continue
+            
+            try:
+                with open(template_file, 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                    
+                    if not content:
+                        load_errors.append(f"Template file is empty: {template_file}")
+                        continue
+                    
+                    # Validate required variables are present
+                    required_vars = ['{request_type}', '{source}', '{issue_content}', '{trace_id}', '{constraints}']
+                    missing_vars = [var for var in required_vars if var not in content]
+                    
+                    if missing_vars:
+                        load_errors.append(
+                            f"Template {template_file} missing required variables: {missing_vars}"
+                        )
+                        continue
+                    
+                    templates[stage] = content
+                    logger.info(f"Loaded prompt template for {stage} stage from {template_file}")
+                    
+            except Exception as e:
+                load_errors.append(f"Failed to load template {template_file}: {str(e)}")
+        
+        # Fail fast if any templates are missing or invalid
+        if missing_templates or load_errors:
+            error_parts = []
+            
+            if missing_templates:
+                error_parts.append(f"Missing template files: {missing_templates}")
+            
+            if load_errors:
+                error_parts.append(f"Template load errors: {load_errors}")
+            
+            raise TemplateLoadError(
+                f"Failed to load required prompt templates. {' | '.join(error_parts)}. "
+                f"All templates must exist and be valid for stages: {required_stages}"
+            )
+        
+        logger.info(f"Successfully loaded {len(templates)} prompt templates from {template_dir}")
+        return templates
+    
+    def _construct_constrained_prompt(self, context: StageContext) -> str:
+        """Construct a policy-constrained prompt for Claude."""
+        template = self._prompt_templates.get(context.current_stage, "")
+        
+        if not template:
+            raise TemplateLoadError(f"No prompt template found for stage: {context.current_stage}")
+        
+        # Get stage-specific constraints
+        constraints = self._stage_constraints[context.current_stage]
+        
+        # Build constraint text
+        constraint_text = self._build_constraint_text(constraints)
+        
+        # Format the template with context and constraints
+        prompt = template.format(
+            request_type=context.request_type,
+            source=context.source,
+            issue_content=context.issue_content,
+            trace_id=context.trace_id,
+            constraints=constraint_text,
+            priority=context.priority or "not specified",
+            severity=context.severity or "not specified"
+        )
+        
+        return prompt
+    
+    def _build_constraint_text(self, constraints: Dict[str, Any]) -> str:
+        """Build human-readable constraint text."""
+        constraint_parts = []
+        
+        if "scope_limits" in constraints:
+            scope_limits = constraints["scope_limits"]
+            constraint_parts.append(f"SCOPE LIMITS: {', '.join(scope_limits)}")
+        
+        if "output_format" in constraints:
+            constraint_parts.append(f"OUTPUT FORMAT: {constraints['output_format']}")
+        
+        if "max_response_length" in constraints:
+            constraint_parts.append(f"MAX RESPONSE LENGTH: {constraints['max_response_length']} characters")
+        
+        return "\n".join(constraint_parts)
     
     def _get_allowed_request_types(self, stage: str) -> list[str]:
         """Get allowed request types for a stage."""

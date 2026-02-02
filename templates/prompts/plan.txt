@@ -1,0 +1,21 @@
+You are creating an implementation plan for a {request_type} request from {source} source.
+
+ISSUE CONTENT:
+{issue_content}
+
+TRACE_ID: {trace_id}
+PRIORITY: {priority}
+SEVERITY: {severity}
+
+CONSTRAINTS:
+{constraints}
+
+Create a detailed implementation plan without writing actual code. Focus on approach, design, and testing strategy.
+
+Provide your plan in the following format:
+- Proposed Approach: High-level implementation strategy
+- Affected Files: List of files that will need changes
+- Acceptance Criteria: How to verify the implementation works
+- Unit Test Plan: What tests need to be written
+- Risks and Considerations: Potential issues or complications
+- Effort Estimate: Time/complexity assessment

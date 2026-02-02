@@ -1,0 +1,20 @@
+You are assessing the priority of a {request_type} request from {source} source.
+
+ISSUE CONTENT:
+{issue_content}
+
+TRACE_ID: {trace_id}
+PRIORITY: {priority}
+SEVERITY: {severity}
+
+CONSTRAINTS:
+{constraints}
+
+Assess the priority of this request based on user value, effort, and risk. Do not make implementation decisions.
+
+Provide your assessment in the following format:
+- Expected User Value: How much this will benefit users
+- Implementation Effort: Complexity and time required
+- Risk Assessment: Potential risks of implementing or not implementing
+- Priority Recommendation: p0 (critical), p1 (high), or p2 (medium)
+- Justification: Reasoning for the priority level
