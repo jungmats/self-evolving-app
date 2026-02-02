@@ -31,10 +31,16 @@ graph TB
         Actions[GitHub Actions]
     end
     
+    subgraph "Self-Hosted Runner Environment"
+        Runner[Self-Hosted Runner]
+        ClaudeCLI[Claude CLI]
+        RepoContext[Repository Context]
+    end
+    
     subgraph "Automation Layer"
         Monitor[Monitoring Component]
         Policy[Policy & Gate Component]
-        Claude[Claude Code Workflows]
+        WorkflowEngine[Workflow Engine]
     end
     
     subgraph "Deployment Layer"
@@ -52,8 +58,12 @@ graph TB
     API --> DB
     Monitor --> Logs
     Monitor --> GH
-    Actions --> Policy
-    Policy --> Claude
+    Actions --> Runner
+    Runner --> ClaudeCLI
+    Runner --> RepoContext
+    Runner --> Policy
+    Runner --> WorkflowEngine
+    Policy --> ClaudeCLI
     Actions --> Deploy
     Deploy --> Server
     
@@ -69,28 +79,38 @@ sequenceDiagram
     participant User
     participant WebApp
     participant GitHub
+    participant Runner as Self-Hosted Runner
     participant Policy
-    participant Claude
+    participant ClaudeCLI as Claude CLI
     participant Deploy
     
     User->>WebApp: Submit Request
     WebApp->>GitHub: Create Issue
-    GitHub->>Policy: Evaluate Triage
-    Policy->>Claude: Constrained Triage
-    Claude->>GitHub: Triage Report
-    GitHub->>Policy: Evaluate Planning
-    Policy->>Claude: Constrained Planning
-    Claude->>GitHub: Implementation Plan
-    GitHub->>Policy: Evaluate Prioritization
-    Policy->>Claude: Constrained Prioritization
-    Claude->>GitHub: Priority Recommendation
+    GitHub->>Runner: Trigger Triage Workflow
+    Runner->>Policy: Evaluate Triage
+    Policy->>ClaudeCLI: Repository-Aware Triage
+    ClaudeCLI->>Runner: Triage Analysis
+    Runner->>GitHub: Post Triage Report
+    GitHub->>Runner: Trigger Planning Workflow
+    Runner->>Policy: Evaluate Planning
+    Policy->>ClaudeCLI: Repository-Aware Planning
+    ClaudeCLI->>Runner: Implementation Plan
+    Runner->>GitHub: Post Implementation Plan
+    GitHub->>Runner: Trigger Prioritization Workflow
+    Runner->>Policy: Evaluate Prioritization
+    Policy->>ClaudeCLI: Repository-Aware Prioritization
+    ClaudeCLI->>Runner: Priority Recommendation
+    Runner->>GitHub: Post Priority Assessment
     GitHub->>User: Await Implementation Approval
-    User->>GitHub: Approve Implementation
-    GitHub->>Policy: Evaluate Implementation
-    Policy->>Claude: Constrained Implementation
-    Claude->>GitHub: Create Pull Request
-    GitHub->>User: Await Deploy Approval
-    User->>Deploy: Approve Deployment
+    User->>GitHub: Approve Implementation (Label/Comment)
+    GitHub->>Runner: Trigger Implementation Workflow
+    Runner->>Policy: Evaluate Implementation
+    Policy->>ClaudeCLI: Repository-Aware Implementation
+    ClaudeCLI->>Runner: Code Changes
+    Runner->>GitHub: Create Pull Request
+    GitHub->>User: Await Deploy Approval (PR Review)
+    User->>GitHub: Approve Deployment (Merge PR)
+    GitHub->>Deploy: Trigger Deployment Workflow
     Deploy->>Deploy: Execute Deployment
 ```
 
@@ -214,9 +234,19 @@ class ChangeContext:
 class PolicyDecision:
     decision: str  # allow, review_required, block
     reason: str
-    constructed_prompt: Optional[str]
+    constructed_prompt: Optional[str]  # Only present when decision=allow
     constraints: Dict[str, Any]
     timestamp: datetime
+    
+    def to_json(self) -> str:
+        """Serialize to JSON for workflow consumption."""
+        return json.dumps({
+            "decision": self.decision,
+            "reason": self.reason,
+            "constructed_prompt": self.constructed_prompt,
+            "constraints": self.constraints,
+            "timestamp": self.timestamp.isoformat()
+        })
 ```
 
 **Policy Rules Engine**:
@@ -225,9 +255,17 @@ class PolicyDecision:
 - Risk-based escalation (e.g., security-related changes require additional approval)
 - Resource constraints (e.g., maximum workflow execution time)
 
-### Workflow Component (GitHub Actions)
+### Workflow Component (GitHub Actions + Self-Hosted Runner)
 
-**Purpose**: Orchestrates multi-stage processing pipeline using GitHub Actions and Claude Code.
+**Purpose**: Orchestrates multi-stage processing pipeline using GitHub Actions with self-hosted runner and Claude CLI integration.
+
+**Architecture**: The system uses a **self-hosted GitHub runner** that provides access to Claude CLI with full repository context, enabling superior code analysis compared to API-only approaches.
+
+**Deployment Model**:
+- **Self-hosted runner** runs on local machine or dedicated server
+- **Repository checkout** provides Claude CLI with complete codebase context
+- **Claude CLI integration** via `claude --print` commands for repository-aware analysis
+- **GitHub API integration** for posting results back to Issues
 
 **Workflow Definitions**:
 
@@ -239,31 +277,140 @@ on:
     types: [labeled]
 jobs:
   triage:
-    if: contains(github.event.label.name, 'stage:triage')
-    runs-on: ubuntu-latest
+    if: github.event.label.name == 'stage:triage' && github.event.action == 'labeled'
+    runs-on: [self-hosted, solops-local]  # Uses self-hosted runner with Claude CLI
     steps:
-      - name: Policy Gate Evaluation
-        run: |
-          policy_decision=$(python scripts/policy_gate.py evaluate \
-            --stage=triage \
-            --issue-id=${{ github.event.issue.number }} \
-            --context-file=context.json)
-          echo "POLICY_DECISION=$policy_decision" >> $GITHUB_ENV
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
-      - name: Execute Triage
-        if: env.POLICY_DECISION == 'allow'
+      - name: Policy Gate Evaluation
+        env:
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
-          claude_response=$(python scripts/claude_integration.py triage \
-            --prompt-file=constrained_prompt.txt \
+          policy_json=$(python .github/scripts/policy_gate_evaluation.py evaluate \
+            --stage=triage \
             --issue-id=${{ github.event.issue.number }})
-          python scripts/update_issue.py --response="$claude_response"
+          
+          # Parse JSON response using jq
+          decision=$(echo "$policy_json" | jq -r '.decision')
+          reason=$(echo "$policy_json" | jq -r '.reason')
+          constructed_prompt=$(echo "$policy_json" | jq -r '.constructed_prompt // ""')
+          
+          # Set environment variables for subsequent steps
+          echo "POLICY_DECISION=$decision" >> $GITHUB_ENV
+          echo "POLICY_REASON=$reason" >> $GITHUB_ENV
+          echo "CONSTRUCTED_PROMPT<<EOF" >> $GITHUB_ENV
+          echo "$constructed_prompt" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+      
+      - name: Execute Triage with Claude CLI
+        if: env.POLICY_DECISION == 'allow'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+        run: |
+          python .github/scripts/functional_workflow_executor.py triage \
+            --issue-id=${{ github.event.issue.number }} \
+            --prompt="$CONSTRUCTED_PROMPT"
+      
+      - name: Handle Policy Block
+        if: env.POLICY_DECISION == 'block'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+        run: |
+          python .github/scripts/workflow_transition.py progress \
+            ${{ github.event.issue.number }} \
+            "triage" \
+            "blocked" \
+            "Policy gate blocked: $POLICY_REASON"
 ```
+
+**Policy Gate JSON Contract**:
+
+The Policy Gate Component MUST output JSON in the following format:
+
+```json
+{
+  "decision": "allow|review_required|block",
+  "reason": "Human-readable explanation of the decision",
+  "constructed_prompt": "Stage-specific prompt with constraints (only when decision=allow)",
+  "constraints": {
+    "max_files_changed": 5,
+    "allowed_paths": ["app/", "tests/"],
+    "forbidden_operations": ["database_migration"]
+  },
+  "timestamp": "2024-02-02T10:30:00Z"
+}
+```
+
+**JSON Field Specifications**:
+- `decision`: REQUIRED string, exactly one of: `allow`, `review_required`, `block`
+- `reason`: REQUIRED string, human-readable explanation for audit trail
+- `constructed_prompt`: OPTIONAL string, only present when `decision=allow`
+- `constraints`: OPTIONAL object, structured constraints for the workflow stage
+- `timestamp`: REQUIRED ISO 8601 timestamp for audit purposes
+
+**Claude CLI Integration Benefits**:
+- **Repository Context**: Claude CLI has access to entire codebase for context-aware analysis
+- **File Relationships**: Can understand code dependencies and architectural patterns
+- **Code Search**: Can search and reference specific files, functions, and patterns
+- **Implementation Suggestions**: Can provide specific code changes with file paths and line numbers
+- **Enhanced Analysis Quality**: Superior analysis through full repository understanding
+- **Codebase Indexing**: Leverages Claude's advanced codebase indexing and search capabilities
+- **Architectural Awareness**: Can understand project structure, design patterns, and conventions
+
+**Technical Advantages**:
+- **Full Repository Context**: Access to all files, not just prompt-limited context
+- **Code Intelligence**: Understanding of imports, dependencies, and relationships
+- **File Navigation**: Can explore and reference any file in the repository
+- **Pattern Recognition**: Identifies existing code patterns and conventions
+- **Comprehensive Analysis**: Can analyze entire modules, not just isolated snippets
+
+**Self-Hosted Runner Setup**:
+```bash
+# Runner installation and configuration
+./config.sh --url https://github.com/owner/repo --token <registration-token>
+./run.sh
+
+# Required dependencies on runner machine:
+# - Python 3.11+
+# - Claude CLI (claude command available in PATH)
+# - Git (for repository operations)
+# - Required Python packages (pip install -r requirements.txt)
+```
+
+**Security Configuration**:
+- **Repository Scope**: Runner MUST be configured as repository-scoped, never organization-wide
+- **Runner Labels**: Use specific labels `[self-hosted, solops]` to restrict workflow targeting
+- **Trusted Code Only**: Workflows MUST NOT run on untrusted PR code paths (especially forks)
+- **Secret Isolation**: No secrets accessible to workflows triggered by untrusted actors
+- **Issue-Triggered Only**: Workflows trigger only on issue label events, not on code changes
+- **Network Isolation**: Runner should have minimal network access beyond GitHub and Claude CLI
+
+**Workflow Security Controls**:
+```yaml
+jobs:
+  triage:
+    runs-on: [self-hosted, solops-local]  # Specific runner targeting
+    if: |
+      github.event.label.name == 'stage:triage' && 
+      github.event.action == 'labeled' &&
+      github.event.issue.user.type != 'Bot'  # No bot-created issues
+```
+
+**Risk Mitigation**:
+- Workflows execute only on repository owner's issues and trusted collaborators
+- No execution on forked repository pull requests
+- Repository checkout uses trusted main branch code for workflow scripts
+- Claude CLI access limited to repository context only
 
 **State Machine Implementation**:
 - Label-based state transitions
 - Atomic label updates with GitHub API
 - Workflow run correlation with Trace_ID
 - Error handling and retry logic
+- Enhanced analysis quality through repository context
 
 ### Deployment Component
 
@@ -368,31 +515,31 @@ erDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> stage_triage : Issue Created
+    [*] --> stage_triage : "Issue Created → stage:triage"
     
-    stage_triage --> stage_plan : Triage Success
-    stage_triage --> stage_blocked : Triage Blocked
+    stage_triage --> stage_plan : "Triage Success → stage:plan"
+    stage_triage --> stage_blocked : "Triage Blocked → stage:blocked"
     
-    stage_plan --> stage_prioritize : Plan Success
-    stage_plan --> stage_blocked : Plan Blocked
+    stage_plan --> stage_prioritize : "Plan Success → stage:prioritize"
+    stage_plan --> stage_blocked : "Plan Blocked → stage:blocked"
     
-    stage_prioritize --> stage_awaiting_implementation_approval : Prioritization Complete
+    stage_prioritize --> stage_awaiting_implementation_approval : "Prioritization Complete → stage:awaiting-implementation-approval"
     
-    stage_awaiting_implementation_approval --> stage_implement : Human Approval
-    stage_awaiting_implementation_approval --> stage_blocked : Approval Denied
+    stage_awaiting_implementation_approval --> stage_implement : "Human Approval → stage:implement"
+    stage_awaiting_implementation_approval --> stage_blocked : "Approval Denied → stage:blocked"
     
-    stage_implement --> stage_pr_opened : Implementation Success
-    stage_implement --> stage_blocked : Implementation Failed
+    stage_implement --> stage_pr_opened : "Implementation Success → stage:pr-opened"
+    stage_implement --> stage_blocked : "Implementation Failed → stage:blocked"
     
-    stage_pr_opened --> stage_awaiting_deploy_approval : PR Merged
+    stage_pr_opened --> stage_awaiting_deploy_approval : "PR Merged → stage:awaiting-deploy-approval"
     
-    stage_awaiting_deploy_approval --> stage_done : Deployment Success
-    stage_awaiting_deploy_approval --> stage_blocked : Deployment Failed
+    stage_awaiting_deploy_approval --> stage_done : "Deployment Success → stage:done"
+    stage_awaiting_deploy_approval --> stage_blocked : "Deployment Failed → stage:blocked"
     
-    stage_blocked --> stage_triage : Manual Intervention
-    stage_blocked --> [*] : Issue Closed
+    stage_blocked --> stage_triage : "Manual Intervention → stage:triage"
+    stage_blocked --> [*] : "Issue Closed"
     
-    stage_done --> [*] : Complete
+    stage_done --> [*] : "Complete"
 ```
 
 ### Local Database Schema
@@ -534,7 +681,11 @@ CREATE TABLE deployments (
 - **Permission Errors**: Log security event and block operation
 
 **2. Workflow Execution Errors**
-- **Claude API Failures**: Retry with backoff, escalate to human if persistent
+- **Claude CLI Invocation Failures**: 
+  - Authentication/session problems: Verify Claude CLI login status and retry
+  - Repository context issues: Check file permissions and repository state
+  - Command timeouts: Implement timeout handling with graceful degradation
+  - Malformed output: Validate JSON structure and retry with simplified prompts
 - **Policy Gate Failures**: Block workflow and require manual intervention
 - **Test Failures**: Block PR creation and record detailed failure information
 - **Deployment Failures**: Automatic rollback with notification

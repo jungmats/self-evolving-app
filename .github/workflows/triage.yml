@@ -13,22 +13,16 @@ permissions:
 jobs:
   triage:
     name: Triage Issue
-    runs-on: ubuntu-latest
-    if: contains(github.event.label.name, 'stage:triage') && github.event.action == 'labeled'
+    runs-on: [self-hosted, solops-local]
+    if: |
+      github.event.label.name == 'stage:triage' && 
+      github.event.action == 'labeled' &&
+      github.event.issue.user.type != 'Bot' &&
+      github.repository_owner == github.actor
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
       
       - name: Extract issue context
         id: context
@@ -43,58 +37,121 @@ jobs:
           echo "Issue author: ${{ github.event.issue.user.login }}"
           echo "Label added: ${{ github.event.label.name }}"
           echo "Action: ${{ github.event.action }}"
+          echo "Repository owner: ${{ github.repository_owner }}"
+          echo "Actor: ${{ github.actor }}"
           
-          # Prevent workflow from running on issues created by bots or automation
+          # Additional security validation
           if [[ "${{ github.event.issue.user.type }}" == "Bot" ]]; then
             echo "❌ Skipping workflow - issue created by bot"
             exit 1
           fi
           
-          # Ensure this is actually a label addition event
           if [[ "${{ github.event.action }}" != "labeled" ]]; then
             echo "❌ Skipping workflow - not a label addition event"
             exit 1
           fi
           
-          echo "✅ Issue context validation passed"
-      
-      - name: Validate environment variables
-        run: |
-          if [ -z "${{ secrets.CLAUDE_API_KEY }}" ]; then
-            echo "❌ CLAUDE_API_KEY is not configured in repository secrets"
-            echo "💡 Add your Claude API key to: Settings → Secrets and variables → Actions"
+          if [[ "${{ github.event.label.name }}" != "stage:triage" ]]; then
+            echo "❌ Skipping workflow - incorrect label"
             exit 1
           fi
-          echo "✅ Environment variables validated"
+          
+          echo "✅ Issue context validation passed"
       
-      - name: Execute functional triage workflow
+      - name: Policy Gate Evaluation
+        id: policy
+        env:
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🛡️ Evaluating policy gate for triage stage..."
+          
+          policy_json=$(python .github/scripts/policy_gate_evaluation.py evaluate \
+            --stage=triage \
+            --issue-id=${{ github.event.issue.number }})
+          
+          # Parse JSON response using jq
+          decision=$(echo "$policy_json" | jq -r '.decision')
+          reason=$(echo "$policy_json" | jq -r '.reason')
+          constructed_prompt=$(echo "$policy_json" | jq -r '.constructed_prompt // ""')
+          
+          # Set environment variables for subsequent steps
+          echo "POLICY_DECISION=$decision" >> $GITHUB_ENV
+          echo "POLICY_REASON=$reason" >> $GITHUB_ENV
+          echo "CONSTRUCTED_PROMPT<<EOF" >> $GITHUB_ENV
+          echo "$constructed_prompt" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          echo "Policy decision: $decision"
+          echo "Policy reason: $reason"
+      
+      - name: Execute Triage with Claude CLI
         id: triage
+        if: env.POLICY_DECISION == 'allow'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+          CLAUDE_CLIENT_TYPE: cli
+          REPO_ROOT: ${{ github.workspace }}
+        run: |
+          echo "🔍 Starting repository-aware triage workflow for issue #${{ github.event.issue.number }}"
+          
+          python .github/scripts/functional_workflow_executor.py triage \
+            --issue-id=${{ github.event.issue.number }} \
+            --prompt="$CONSTRUCTED_PROMPT"
+      
+      - name: Handle Policy Block
+        if: env.POLICY_DECISION == 'block'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
-          echo "🔍 Starting functional triage workflow for issue #${{ steps.context.outputs.issue_id }}"
-          python .github/scripts/functional_workflow_executor.py triage \
-            --issue-id ${{ steps.context.outputs.issue_id }}
+          echo "❌ Triage blocked by policy gate"
+          
+          python .github/scripts/workflow_transition.py progress \
+            ${{ github.event.issue.number }} \
+            "triage" \
+            "blocked" \
+            "Policy gate blocked: $POLICY_REASON"
+          
+          python .github/scripts/workflow_transition.py transition \
+            ${{ github.event.issue.number }} \
+            "stage:triage" \
+            "stage:blocked" \
+            "triage"
+      
+      - name: Handle Policy Review Required
+        if: env.POLICY_DECISION == 'review_required'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+        run: |
+          echo "⚠️ Triage requires human review"
+          
+          python .github/scripts/workflow_transition.py progress \
+            ${{ github.event.issue.number }} \
+            "triage" \
+            "review_required" \
+            "Human review required: $POLICY_REASON"
       
       - name: Handle successful triage
         if: steps.triage.outputs.success == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           # Transition to next stage based on triage results
           NEXT_STAGE="${{ steps.triage.outputs.next_stage }}"
           
           if [ "$NEXT_STAGE" = "plan" ]; then
             python .github/scripts/workflow_transition.py transition \
-              ${{ steps.context.outputs.issue_id }} \
+              ${{ github.event.issue.number }} \
               "stage:triage" \
               "stage:plan" \
               "triage"
           elif [ "$NEXT_STAGE" = "blocked" ]; then
             python .github/scripts/workflow_transition.py transition \
-              ${{ steps.context.outputs.issue_id }} \
+              ${{ github.event.issue.number }} \
               "stage:triage" \
               "stage:blocked" \
               "triage"
@@ -107,47 +164,50 @@ jobs:
         if: steps.triage.outputs.blocked == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python .github/scripts/workflow_transition.py transition \
-            ${{ steps.context.outputs.issue_id }} \
+            ${{ github.event.issue.number }} \
             "stage:triage" \
             "stage:blocked" \
             "triage"
           
           python .github/scripts/workflow_transition.py progress \
-            ${{ steps.context.outputs.issue_id }} \
+            ${{ github.event.issue.number }} \
             "triage" \
             "blocked" \
-            "Policy gate blocked this request: ${{ steps.triage.outputs.reason }}"
+            "Triage analysis blocked: ${{ steps.triage.outputs.reason }}"
       
       - name: Handle review required
         if: steps.triage.outputs.review_required == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python .github/scripts/workflow_transition.py progress \
-            ${{ steps.context.outputs.issue_id }} \
+            ${{ github.event.issue.number }} \
             "triage" \
-            "blocked" \
+            "review_required" \
             "Human review required: ${{ steps.triage.outputs.reason }}"
       
       - name: Handle triage failure
         if: failure()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "❌ Triage workflow failed - adding detailed error comment to issue"
           
           # Create detailed error comment
           python .github/scripts/workflow_transition.py progress \
-            ${{ steps.context.outputs.issue_id }} \
+            ${{ github.event.issue.number }} \
             "triage" \
             "failed" \
-            "Triage Workflow Failed - Workflow execution failed during triage analysis. Check GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "Triage Workflow Failed - Repository-aware workflow execution failed during triage analysis. Check GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
           # Transition to blocked state
           python .github/scripts/workflow_transition.py transition \
-            ${{ steps.context.outputs.issue_id }} \
+            ${{ github.event.issue.number }} \
             "stage:triage" \
             "stage:blocked" \
             "triage"
