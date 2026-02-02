@@ -171,13 +171,6 @@ check_connectivity() {
         return 1
     fi
     
-    # Test Claude API connectivity (if configured)
-    if curl -s --connect-timeout 10 https://api.anthropic.com > /dev/null; then
-        log_info "Claude API is reachable"
-    else
-        log_warn "Cannot reach Claude API (may not be required)"
-    fi
-    
     return 0
 }
 

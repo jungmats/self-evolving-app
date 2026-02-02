@@ -30,7 +30,6 @@ You need admin access to the app repo to:
 ### 1.3 Tokens / secrets you must provide
 At minimum:
 - **`GH_PAT`**: a fine-scoped Personal Access Token (classic or fine‑grained) used by workflows to manage Issues/PRs/labels.
-- **`CLAUDE_API_KEY`** (or whatever your Claude provider requires)
 
 > Security note: do **not** expose secrets to untrusted PRs (e.g., forks). Keep the repo private at first or restrict workflows appropriately.
 
@@ -85,7 +84,6 @@ In **Settings → Actions → General → Workflow permissions**:
 In **Settings → Secrets and variables → Actions → Secrets** add:
 
 - `GH_PAT`
-- `CLAUDE_API_KEY` (or equivalent)
 
 ### 4.3 Add repository variables (recommended)
 In **Variables**, add:

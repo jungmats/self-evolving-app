@@ -1,6 +1,6 @@
 """Functional workflow engine for the Self-Evolving Web Application.
 
-This module implements the functional workflow logic that integrates Claude API
+This module implements the functional workflow logic that integrates Claude CLI
 with the Policy & Gate Component to produce real outcomes for triage, planning,
 and prioritization workflows.
 """
@@ -29,7 +29,7 @@ class WorkflowEngine:
     """
     Functional workflow engine that orchestrates Claude analysis with policy constraints.
     
-    This engine integrates the Policy & Gate Component with Claude API to produce
+    This engine integrates the Policy & Gate Component with Claude CLI to produce
     real workflow outcomes while ensuring all automated actions stay within
     defined policy bounds.
     """

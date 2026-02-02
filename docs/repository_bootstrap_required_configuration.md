@@ -112,8 +112,11 @@ Settings → Secrets and variables → Actions
 
 #### Required Secrets (Repository-level)
 
-* `ANTHROPIC_API_KEY`
-  API key used by Claude workflows (triage, planning, prioritization, implementation).
+The system now uses Claude CLI integration instead of API keys.
+No Claude-specific secrets are required - Claude CLI handles authentication locally.
+
+For GitHub integration:
+* `GITHUB_TOKEN` - Personal Access Token for GitHub API access (if not using environment variables)
 
 ---
 
@@ -153,7 +156,7 @@ After completing the steps above:
 * Workflows can apply labels and manage issues/PRs
 * Only PR merges can update `main`
 * Merging a PR automatically triggers deployment
-* Secrets are available for Claude and deployment
+* Claude CLI provides AI capabilities with repository context
 * The repository is ready for autonomous evolution workflows
 
 ---

@@ -61,9 +61,9 @@ class GitHubEnvironmentManager:
         secrets_info = {
             "required_secrets": [
                 {
-                    "name": "CLAUDE_API_KEY",
-                    "description": "API key for Claude Code integration",
-                    "required_for": ["triage", "planning", "prioritization", "implementation"]
+                    "name": "GITHUB_TOKEN",
+                    "description": "GitHub Personal Access Token for API access",
+                    "required_for": ["all workflows"]
                 },
                 {
                     "name": "DEPLOYMENT_SECRET",
