@@ -156,8 +156,8 @@ class ClaudeCLIClient:
             if additional_args:
                 cmd_args.extend(additional_args)
             
-            # Set working directory
-            work_dir = working_directory or str(self.repository_root)
+            # Set working directory (use temp dir to avoid repository context issues)
+            work_dir = tempfile.gettempdir()  # Use temp directory instead of repository
             
             # Create temporary file for prompt if it's long
             if len(prompt) > 1000:
