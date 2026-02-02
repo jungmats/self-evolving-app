@@ -426,7 +426,7 @@ class WorkflowEngine:
     
     def _build_triage_comment(self, results: Dict[str, Any], trace_id: str) -> str:
         """Build triage analysis comment."""
-        return f"""🔍 **Triage Analysis Completed**
+        return f"""🔍 **Triage Analysis Completed** ✅
 
 **Problem Summary**
 {results.get('problem_summary', 'Not available')}
@@ -444,11 +444,12 @@ class WorkflowEngine:
 **Trace_ID**: `{trace_id}`
 **Analysis Timestamp**: {results.get('_metadata', {}).get('timestamp', 'Unknown')}
 **Model**: {results.get('_metadata', {}).get('model', 'Unknown')}
+**Token Usage**: {results.get('_metadata', {}).get('usage', {})}
 """
     
     def _build_planning_comment(self, results: Dict[str, Any], trace_id: str) -> str:
         """Build planning analysis comment."""
-        return f"""📋 **Implementation Plan Completed**
+        return f"""📋 **Implementation Plan Completed** ✅
 
 **Proposed Approach**
 {results.get('proposed_approach', 'Not available')}
@@ -472,11 +473,12 @@ class WorkflowEngine:
 **Trace_ID**: `{trace_id}`
 **Analysis Timestamp**: {results.get('_metadata', {}).get('timestamp', 'Unknown')}
 **Model**: {results.get('_metadata', {}).get('model', 'Unknown')}
+**Token Usage**: {results.get('_metadata', {}).get('usage', {})}
 """
     
     def _build_prioritization_comment(self, results: Dict[str, Any], trace_id: str) -> str:
         """Build prioritization analysis comment."""
-        return f"""⚖️ **Priority Assessment Completed**
+        return f"""⚖️ **Priority Assessment Completed** ✅
 
 **Expected User Value**
 {results.get('expected_user_value', 'Not available')}
@@ -497,6 +499,7 @@ class WorkflowEngine:
 **Trace_ID**: `{trace_id}`
 **Analysis Timestamp**: {results.get('_metadata', {}).get('timestamp', 'Unknown')}
 **Model**: {results.get('_metadata', {}).get('model', 'Unknown')}
+**Token Usage**: {results.get('_metadata', {}).get('usage', {})}
 """
 
 

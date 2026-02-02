@@ -148,13 +148,18 @@ class ClaudeClient:
             )
             
         except requests.exceptions.Timeout:
-            raise ClaudeClientError(f"Claude API request timed out after {self.timeout} seconds")
+            raise ClaudeClientError(f"❌ Claude API request timed out after {self.timeout} seconds. Check network connectivity.")
         except requests.exceptions.RequestException as e:
-            raise ClaudeClientError(f"Claude API request failed: {str(e)}")
+            if "401" in str(e) or "authentication" in str(e).lower():
+                raise ClaudeClientError("❌ Claude API authentication failed. Check your CLAUDE_API_KEY.")
+            elif "429" in str(e) or "rate limit" in str(e).lower():
+                raise ClaudeClientError("❌ Claude API rate limit exceeded. Please try again later.")
+            else:
+                raise ClaudeClientError(f"❌ Claude API request failed: {str(e)}")
         except json.JSONDecodeError as e:
-            raise ClaudeClientError(f"Failed to parse Claude API response: {str(e)}")
+            raise ClaudeClientError(f"❌ Failed to parse Claude API response: {str(e)}")
         except Exception as e:
-            raise ClaudeClientError(f"Unexpected error calling Claude API: {str(e)}")
+            raise ClaudeClientError(f"❌ Unexpected error calling Claude API: {str(e)}")
     
     def triage_analysis(self, constrained_prompt: str, trace_id: str) -> Dict[str, Any]:
         """

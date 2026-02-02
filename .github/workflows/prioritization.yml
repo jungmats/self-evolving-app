@@ -35,12 +35,22 @@ jobs:
           echo "issue_id=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
           echo "issue_title=${{ github.event.issue.title }}" >> $GITHUB_OUTPUT
       
+      - name: Validate environment variables
+        run: |
+          if [ -z "${{ secrets.CLAUDE_API_KEY }}" ]; then
+            echo "❌ CLAUDE_API_KEY is not configured in repository secrets"
+            echo "💡 Add your Claude API key to: Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          echo "✅ Environment variables validated"
+      
       - name: Execute functional prioritization workflow
         id: prioritization
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         run: |
+          echo "⚖️ Starting functional prioritization workflow for issue #${{ steps.context.outputs.issue_id }}"
           python .github/scripts/functional_workflow_executor.py prioritization \
             --issue-id ${{ steps.context.outputs.issue_id }}
       
@@ -98,14 +108,35 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "❌ Prioritization workflow failed - adding detailed error comment to issue"
+          
+          # Create detailed error comment
+          python .github/scripts/workflow_transition.py progress \
+            ${{ steps.context.outputs.issue_id }} \
+            "prioritization" \
+            "failed" \
+            "❌ **Prioritization Workflow Failed**
+
+**Error**: Workflow execution failed during priority assessment
+**Possible Causes**:
+- Claude API authentication issues
+- Missing planning artifacts
+- Policy gate restrictions
+- Network connectivity problems
+
+**Troubleshooting**:
+1. Verify that planning stage completed successfully
+2. Check GitHub Actions logs for detailed error messages
+3. Ensure all previous workflow stages have completed
+
+**Workflow Run**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+**Timestamp**: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+This issue has been moved to **stage:blocked** and requires manual intervention."
+          
+          # Transition to blocked state
           python .github/scripts/workflow_transition.py transition \
             ${{ steps.context.outputs.issue_id }} \
             "stage:prioritize" \
             "stage:blocked" \
             "prioritization"
-          
-          python .github/scripts/workflow_transition.py progress \
-            ${{ steps.context.outputs.issue_id }} \
-            "prioritization" \
-            "failed" \
-            "Prioritization workflow failed. Check workflow logs for details."
