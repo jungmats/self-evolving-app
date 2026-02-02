@@ -35,12 +35,22 @@ jobs:
           echo "issue_id=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
           echo "issue_title=${{ github.event.issue.title }}" >> $GITHUB_OUTPUT
       
+      - name: Validate environment variables
+        run: |
+          if [ -z "${{ secrets.CLAUDE_API_KEY }}" ]; then
+            echo "❌ CLAUDE_API_KEY is not configured in repository secrets"
+            echo "💡 Add your Claude API key to: Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          echo "✅ Environment variables validated"
+      
       - name: Execute functional triage workflow
         id: triage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         run: |
+          echo "🔍 Starting functional triage workflow for issue #${{ steps.context.outputs.issue_id }}"
           python .github/scripts/functional_workflow_executor.py triage \
             --issue-id ${{ steps.context.outputs.issue_id }}
       
@@ -102,14 +112,35 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "❌ Triage workflow failed - adding detailed error comment to issue"
+          
+          # Create detailed error comment
+          python .github/scripts/workflow_transition.py progress \
+            ${{ steps.context.outputs.issue_id }} \
+            "triage" \
+            "failed" \
+            "❌ **Triage Workflow Failed**
+
+**Error**: Workflow execution failed during triage analysis
+**Possible Causes**:
+- Claude API authentication issues
+- Missing environment variables
+- Network connectivity problems
+- Policy gate evaluation errors
+
+**Troubleshooting**:
+1. Check that CLAUDE_API_KEY is configured in repository secrets
+2. Verify GitHub Actions logs for detailed error messages
+3. Ensure all dependencies are properly installed
+
+**Workflow Run**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+**Timestamp**: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+This issue has been moved to **stage:blocked** and requires manual intervention."
+          
+          # Transition to blocked state
           python .github/scripts/workflow_transition.py transition \
             ${{ steps.context.outputs.issue_id }} \
             "stage:triage" \
             "stage:blocked" \
             "triage"
-          
-          python .github/scripts/workflow_transition.py progress \
-            ${{ steps.context.outputs.issue_id }} \
-            "triage" \
-            "failed" \
-            "Triage workflow failed. Check workflow logs for details."

@@ -35,21 +35,33 @@ class FunctionalWorkflowExecutor:
         self.repository = os.getenv("GITHUB_REPOSITORY")
         self.claude_api_key = os.getenv("CLAUDE_API_KEY")
         
+        # Validate required environment variables
+        missing_vars = []
         if not self.github_token:
-            raise ValueError("GITHUB_TOKEN environment variable is required")
+            missing_vars.append("GITHUB_TOKEN")
         if not self.repository:
-            raise ValueError("GITHUB_REPOSITORY environment variable is required")
+            missing_vars.append("GITHUB_REPOSITORY")
         if not self.claude_api_key:
-            raise ValueError("CLAUDE_API_KEY environment variable is required")
+            missing_vars.append("CLAUDE_API_KEY")
+        
+        if missing_vars:
+            error_msg = f"❌ Missing required environment variables: {', '.join(missing_vars)}"
+            print(error_msg)
+            print("💡 Ensure these are configured in your GitHub repository secrets")
+            raise ValueError(error_msg)
         
         try:
+            print("🔧 Initializing workflow components...")
             self.workflow_engine = get_workflow_engine()
             self.github_client = GitHubClient(
                 token=self.github_token,
                 repository=self.repository
             )
+            print("✅ Workflow executor initialized successfully")
         except Exception as e:
-            raise ValueError(f"Failed to initialize workflow executor: {str(e)}")
+            error_msg = f"❌ Failed to initialize workflow executor: {str(e)}"
+            print(error_msg)
+            raise ValueError(error_msg)
     
     def execute_triage_workflow(self, issue_id: int) -> Dict[str, Any]:
         """
@@ -132,10 +144,14 @@ class FunctionalWorkflowExecutor:
                     }
             
         except WorkflowEngineError as e:
-            print(f"❌ Workflow engine error: {str(e)}")
+            error_msg = f"❌ Workflow engine error: {str(e)}"
+            print(error_msg)
+            print("💡 This usually indicates a Claude API or policy evaluation issue")
             raise
         except Exception as e:
-            print(f"❌ Unexpected error in triage workflow: {str(e)}")
+            error_msg = f"❌ Unexpected error in triage workflow: {str(e)}"
+            print(error_msg)
+            print("💡 Check GitHub Actions logs for detailed error information")
             raise WorkflowEngineError(f"Triage workflow failed: {str(e)}")
     
     def execute_planning_workflow(self, issue_id: int) -> Dict[str, Any]:
@@ -225,10 +241,14 @@ class FunctionalWorkflowExecutor:
                     }
             
         except WorkflowEngineError as e:
-            print(f"❌ Workflow engine error: {str(e)}")
+            error_msg = f"❌ Workflow engine error: {str(e)}"
+            print(error_msg)
+            print("💡 This usually indicates a Claude API or policy evaluation issue")
             raise
         except Exception as e:
-            print(f"❌ Unexpected error in planning workflow: {str(e)}")
+            error_msg = f"❌ Unexpected error in planning workflow: {str(e)}"
+            print(error_msg)
+            print("💡 Check GitHub Actions logs for detailed error information")
             raise WorkflowEngineError(f"Planning workflow failed: {str(e)}")
     
     def execute_prioritization_workflow(self, issue_id: int) -> Dict[str, Any]:
@@ -320,10 +340,14 @@ class FunctionalWorkflowExecutor:
                     }
             
         except WorkflowEngineError as e:
-            print(f"❌ Workflow engine error: {str(e)}")
+            error_msg = f"❌ Workflow engine error: {str(e)}"
+            print(error_msg)
+            print("💡 This usually indicates a Claude API or policy evaluation issue")
             raise
         except Exception as e:
-            print(f"❌ Unexpected error in prioritization workflow: {str(e)}")
+            error_msg = f"❌ Unexpected error in prioritization workflow: {str(e)}"
+            print(error_msg)
+            print("💡 Check GitHub Actions logs for detailed error information")
             raise WorkflowEngineError(f"Prioritization workflow failed: {str(e)}")
     
     def _extract_trace_id_from_issue(self, issue_body: str) -> Optional[str]:

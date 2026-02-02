@@ -35,12 +35,22 @@ jobs:
           echo "issue_id=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
           echo "issue_title=${{ github.event.issue.title }}" >> $GITHUB_OUTPUT
       
+      - name: Validate environment variables
+        run: |
+          if [ -z "${{ secrets.CLAUDE_API_KEY }}" ]; then
+            echo "❌ CLAUDE_API_KEY is not configured in repository secrets"
+            echo "💡 Add your Claude API key to: Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          echo "✅ Environment variables validated"
+      
       - name: Execute functional planning workflow
         id: planning
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         run: |
+          echo "📋 Starting functional planning workflow for issue #${{ steps.context.outputs.issue_id }}"
           python .github/scripts/functional_workflow_executor.py planning \
             --issue-id ${{ steps.context.outputs.issue_id }}
       
@@ -89,14 +99,35 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "❌ Planning workflow failed - adding detailed error comment to issue"
+          
+          # Create detailed error comment
+          python .github/scripts/workflow_transition.py progress \
+            ${{ steps.context.outputs.issue_id }} \
+            "planning" \
+            "failed" \
+            "❌ **Planning Workflow Failed**
+
+**Error**: Workflow execution failed during implementation planning
+**Possible Causes**:
+- Claude API authentication issues
+- Missing triage artifacts
+- Policy gate restrictions
+- Network connectivity problems
+
+**Troubleshooting**:
+1. Verify that triage stage completed successfully
+2. Check GitHub Actions logs for detailed error messages
+3. Ensure Claude API key is properly configured
+
+**Workflow Run**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+**Timestamp**: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+This issue has been moved to **stage:blocked** and requires manual intervention."
+          
+          # Transition to blocked state
           python .github/scripts/workflow_transition.py transition \
             ${{ steps.context.outputs.issue_id }} \
             "stage:plan" \
             "stage:blocked" \
             "planning"
-          
-          python .github/scripts/workflow_transition.py progress \
-            ${{ steps.context.outputs.issue_id }} \
-            "planning" \
-            "failed" \
-            "Planning workflow failed. Check workflow logs for details."
