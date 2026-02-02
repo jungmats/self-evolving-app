@@ -24,6 +24,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
+      - name: Install Python dependencies
+        run: |
+          echo "📦 Installing Python dependencies for runner environment..."
+          echo "Python version: $(python3 --version)"
+          echo "Python path: $(which python3)"
+          echo "Architecture: $(uname -m)"
+          echo "Current working directory: $(pwd)"
+          echo "PYTHONPATH will be: ${{ github.workspace }}/app:${{ github.workspace }}"
+          
+          # Try to import pydantic first to see current state
+          echo "Testing current pydantic installation..."
+          python3 -c "import pydantic; print('Current pydantic version:', pydantic.__version__)" || echo "Pydantic not available or broken"
+          
+          # Install dependencies
+          python3 -m pip install --user -r requirements.txt --force-reinstall --no-cache-dir
+          
+          # Verify installation
+          echo "Verifying pydantic installation..."
+          python3 -c "import pydantic; print('Installed pydantic version:', pydantic.__version__)"
+          echo "✅ Dependencies installed successfully"
+      
       - name: Extract issue context
         id: context
         run: |
