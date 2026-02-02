@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests
+          pip install -r requirements.txt
       
       - name: Extract issue context
         id: context
@@ -35,55 +35,28 @@ jobs:
           echo "issue_id=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
           echo "issue_title=${{ github.event.issue.title }}" >> $GITHUB_OUTPUT
       
-      - name: Policy gate evaluation
-        id: policy
+      - name: Execute functional prioritization workflow
+        id: prioritization
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         run: |
-          # Placeholder for policy gate evaluation
-          echo "decision=allow" >> $GITHUB_OUTPUT
-          echo "recommended_priority=priority:p2" >> $GITHUB_OUTPUT
-          echo "Policy gate evaluation: ALLOW (placeholder implementation)"
-      
-      - name: Add workflow start comment
-        if: steps.policy.outputs.decision == 'allow'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python .github/scripts/workflow_transition.py progress \
-            ${{ steps.context.outputs.issue_id }} \
-            "prioritization" \
-            "started" \
-            "Policy gate evaluation passed, beginning prioritization analysis"
-      
-      - name: Execute prioritization analysis
-        if: steps.policy.outputs.decision == 'allow'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
-        run: |
-          # Placeholder for Claude prioritization analysis
-          echo "Executing prioritization analysis for issue #${{ steps.context.outputs.issue_id }}"
-          
-          # Add prioritization analysis comment (placeholder implementation)
-          python .github/scripts/workflow_transition.py progress \
-            ${{ steps.context.outputs.issue_id }} \
-            "prioritization" \
-            "completed" \
-            "Prioritization analysis completed (placeholder). Priority level assigned and ready for implementation approval."
+          python .github/scripts/functional_workflow_executor.py prioritization \
+            --issue-id ${{ steps.context.outputs.issue_id }}
       
       - name: Apply priority label and transition
-        if: steps.policy.outputs.decision == 'allow'
+        if: steps.prioritization.outputs.success == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Add priority label using GitHub API directly (simpler for this step)
+          # Add priority label using GitHub API directly
+          PRIORITY_LABEL="${{ steps.prioritization.outputs.recommended_priority }}"
+          
           curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_id }}/labels" \
-            -d '{"labels": ["${{ steps.policy.outputs.recommended_priority }}"]}'
+            -d "{\"labels\": [\"$PRIORITY_LABEL\"]}"
           
           # Transition to awaiting implementation approval
           python .github/scripts/workflow_transition.py transition \
@@ -92,8 +65,8 @@ jobs:
             "stage:awaiting-implementation-approval" \
             "prioritization"
       
-      - name: Handle policy block
-        if: steps.policy.outputs.decision == 'block'
+      - name: Handle blocked prioritization
+        if: steps.prioritization.outputs.blocked == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -107,4 +80,32 @@ jobs:
             ${{ steps.context.outputs.issue_id }} \
             "prioritization" \
             "blocked" \
-            "Policy gate blocked this request. Manual intervention required."
+            "Policy gate blocked this request: ${{ steps.prioritization.outputs.reason }}"
+      
+      - name: Handle review required
+        if: steps.prioritization.outputs.review_required == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python .github/scripts/workflow_transition.py progress \
+            ${{ steps.context.outputs.issue_id }} \
+            "prioritization" \
+            "blocked" \
+            "Human review required: ${{ steps.prioritization.outputs.reason }}"
+      
+      - name: Handle prioritization failure
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python .github/scripts/workflow_transition.py transition \
+            ${{ steps.context.outputs.issue_id }} \
+            "stage:prioritize" \
+            "stage:blocked" \
+            "prioritization"
+          
+          python .github/scripts/workflow_transition.py progress \
+            ${{ steps.context.outputs.issue_id }} \
+            "prioritization" \
+            "failed" \
+            "Prioritization workflow failed. Check workflow logs for details."

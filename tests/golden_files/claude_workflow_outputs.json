@@ -1,0 +1,130 @@
+{
+  "description": "Expected Claude workflow output schemas and validation rules",
+  "version": "1.0",
+  "triage_output_schema": {
+    "required_sections": [
+      "Problem Summary",
+      "Suspected Cause",
+      "Clarifying Questions",
+      "Recommendation"
+    ],
+    "validation_rules": {
+      "recommendation_must_contain": [
+        "proceed",
+        "block"
+      ],
+      "min_content_per_section": 10,
+      "max_total_length": 2000
+    },
+    "example_output": {
+      "problem_summary": "Application crashes when users click the main button during startup sequence",
+      "suspected_cause": "Null pointer exception in button event handler due to uninitialized component state",
+      "clarifying_questions": "What browser and version? Does this happen on all devices? Are there any console errors?",
+      "recommendation": "This issue should proceed to planning stage as it affects core functionality"
+    }
+  },
+  "planning_output_schema": {
+    "required_sections": [
+      "Proposed Approach",
+      "Affected Files",
+      "Acceptance Criteria",
+      "Unit Test Plan",
+      "Risks and Considerations",
+      "Effort Estimate"
+    ],
+    "validation_rules": {
+      "affected_files_min_length": 10,
+      "must_include_test_strategy": true,
+      "max_total_length": 3000
+    },
+    "example_output": {
+      "proposed_approach": "Add null checks and proper initialization order in the button component",
+      "affected_files": "frontend/src/components/MainButton.tsx, frontend/src/App.tsx",
+      "acceptance_criteria": "Button clicks work without crashes, proper error handling displays user-friendly messages",
+      "unit_test_plan": "Test button initialization, test click handlers, test error scenarios",
+      "risks_and_considerations": "Changes may affect other components that depend on button state",
+      "effort_estimate": "2-3 hours development, 1 hour testing"
+    }
+  },
+  "prioritization_output_schema": {
+    "required_sections": [
+      "Expected User Value",
+      "Implementation Effort",
+      "Risk Assessment",
+      "Priority Recommendation",
+      "Justification"
+    ],
+    "validation_rules": {
+      "priority_must_contain": [
+        "p0",
+        "p1",
+        "p2"
+      ],
+      "must_assess_user_impact": true,
+      "max_total_length": 1500
+    },
+    "example_output": {
+      "expected_user_value": "High - fixes critical functionality that prevents users from using the application",
+      "implementation_effort": "Medium - requires component changes and testing but no architectural changes",
+      "risk_assessment": "Low risk - isolated change with good test coverage",
+      "priority_recommendation": "p1 - high priority due to user impact",
+      "justification": "Critical bug affecting core functionality warrants high priority despite medium effort"
+    }
+  },
+  "implementation_output_schema": {
+    "required_elements": [
+      "code_blocks",
+      "test_coverage",
+      "error_handling"
+    ],
+    "validation_rules": {
+      "min_content_length": 100,
+      "must_contain_code": true,
+      "must_include_tests": true
+    },
+    "code_indicators": [
+      "```",
+      "def ",
+      "class ",
+      "function ",
+      "const "
+    ],
+    "test_indicators": [
+      "test_",
+      "describe(",
+      "it(",
+      "expect(",
+      "assert"
+    ]
+  },
+  "response_metadata_schema": {
+    "required_fields": [
+      "trace_id",
+      "model",
+      "usage",
+      "timestamp",
+      "workflow_stage"
+    ],
+    "usage_fields": [
+      "input_tokens",
+      "output_tokens"
+    ],
+    "timestamp_format": "ISO 8601"
+  },
+  "error_handling_requirements": {
+    "api_errors": {
+      "timeout_handling": true,
+      "rate_limit_handling": true,
+      "authentication_error_handling": true
+    },
+    "validation_errors": {
+      "missing_sections": "ClaudeResponseValidationError",
+      "invalid_format": "ClaudeResponseValidationError",
+      "content_too_short": "ClaudeResponseValidationError"
+    },
+    "retry_behavior": {
+      "max_retries": 0,
+      "exponential_backoff": false
+    }
+  }
+}

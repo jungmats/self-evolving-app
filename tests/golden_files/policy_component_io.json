@@ -1,0 +1,135 @@
+{
+  "description": "Expected Policy & Gate Component input/output behavior",
+  "version": "1.0",
+  "stage_constraints": {
+    "triage": {
+      "allowed_request_types": [
+        "bug",
+        "feature",
+        "investigate"
+      ],
+      "source_policy": "all_allowed",
+      "scope_limits": [
+        "analyze problem only",
+        "no code changes",
+        "no implementation suggestions",
+        "focus on understanding and clarification"
+      ],
+      "output_format": "structured triage report",
+      "max_response_length": 2000,
+      "required_artifacts": []
+    },
+    "plan": {
+      "allowed_request_types": [
+        "bug",
+        "feature"
+      ],
+      "source_policy": "all_allowed",
+      "scope_limits": [
+        "create implementation plan only",
+        "no actual code implementation",
+        "focus on approach and design",
+        "include test strategy"
+      ],
+      "output_format": "structured implementation plan",
+      "max_response_length": 3000,
+      "required_artifacts": [
+        "triage_report"
+      ]
+    },
+    "prioritize": {
+      "allowed_request_types": [
+        "bug",
+        "feature"
+      ],
+      "source_policy": "all_allowed",
+      "scope_limits": [
+        "assess priority only",
+        "no implementation decisions",
+        "focus on value and effort analysis"
+      ],
+      "output_format": "priority recommendation with justification",
+      "max_response_length": 1500,
+      "required_artifacts": [
+        "triage_report",
+        "implementation_plan"
+      ]
+    },
+    "implement": {
+      "allowed_request_types": [
+        "bug",
+        "feature"
+      ],
+      "source_policy": "user_only",
+      "scope_limits": [
+        "implement approved plan only",
+        "include comprehensive tests",
+        "follow existing code patterns",
+        "no architectural changes without approval"
+      ],
+      "output_format": "code implementation with tests",
+      "max_response_length": 10000,
+      "required_artifacts": [
+        "triage_report",
+        "implementation_plan",
+        "priority_assessment",
+        "human_approval"
+      ]
+    }
+  },
+  "decision_types": [
+    "allow",
+    "review_required",
+    "block"
+  ],
+  "content_validation": {
+    "min_content_length": 10,
+    "inappropriate_patterns": [
+      "delete everything",
+      "rm -rf",
+      "drop database",
+      "format hard drive",
+      "shutdown system",
+      "hack",
+      "exploit",
+      "backdoor"
+    ],
+    "spam_indicators": {
+      "max_exclamation_marks": 10,
+      "max_question_marks": 10
+    }
+  },
+  "change_evaluation": {
+    "max_files_changed": 20,
+    "restricted_paths": [
+      ".github/workflows/",
+      "app/policy_gate.py",
+      "requirements.txt"
+    ],
+    "required_ci_status": "success"
+  },
+  "prompt_template_requirements": {
+    "required_sections": [
+      "ISSUE CONTENT:",
+      "TRACE_ID:",
+      "CONSTRAINTS:"
+    ],
+    "required_variables": [
+      "request_type",
+      "source",
+      "issue_content",
+      "trace_id",
+      "constraints"
+    ]
+  },
+  "audit_trail_requirements": {
+    "required_fields": [
+      "trace_id",
+      "stage",
+      "decision",
+      "reason",
+      "timestamp"
+    ],
+    "decision_persistence": true
+  }
+}

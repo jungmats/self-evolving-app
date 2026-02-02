@@ -1,7 +1,7 @@
 """Pydantic models for API request/response validation."""
 
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 
 
@@ -52,3 +52,41 @@ class StatusResponse(BaseModel):
     github_issue_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+
+
+class StageContext(BaseModel):
+    """Context information for policy evaluation."""
+    issue_id: int
+    current_stage: str
+    request_type: str
+    source: str
+    priority: Optional[str] = None
+    severity: Optional[str] = None
+    trace_id: str
+    issue_content: str
+    workflow_artifacts: list[str] = Field(default_factory=list)
+
+
+class ChangeContext(BaseModel):
+    """Context information for implementation change evaluation."""
+    changed_files: list[str]
+    diff_stats: Dict[str, Any]
+    ci_status: str
+    test_results: Optional[Dict[str, Any]] = None
+
+
+class PolicyDecisionModel(BaseModel):
+    """Policy decision response model."""
+    decision: str = Field(..., description="Policy decision: allow, review_required, or block")
+    reason: str = Field(..., description="Explanation for the decision")
+    constructed_prompt: Optional[str] = Field(None, description="Constrained prompt for Claude if decision is allow")
+    constraints: Dict[str, Any] = Field(default_factory=dict, description="Applied constraints")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    
+    @field_validator('decision')
+    @classmethod
+    def validate_decision(cls, v):
+        allowed_decisions = ['allow', 'review_required', 'block']
+        if v not in allowed_decisions:
+            raise ValueError(f'Decision must be one of: {", ".join(allowed_decisions)}')
+        return v

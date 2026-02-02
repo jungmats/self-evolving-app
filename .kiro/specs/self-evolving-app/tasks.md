@@ -96,46 +96,46 @@ The implementation follows test-driven development principles, with small, rever
     - _Requirements: 12.4, 3.2_
     - **Test: State machine works (triage→plan→prioritize→stage:awaiting-implementation-approval) without real outcomes - but requires to attach plan as comment and change label to state:prioritize manually**
 
-- [ ] 6. Policy & Gate Component - Request Blocking
-  - [ ] 6.1 Implement Policy & Gate Component data model
+- [x] 6. Policy & Gate Component - Request Blocking
+  - [x] 6.1 Implement Policy & Gate Component data model
     - Create PolicyDecision model for audit trail
     - Add policy decision recording with timestamps
     - _Requirements: 16.12_
 
-  - [ ] 6.2 Implement Policy & Gate Component core logic
+  - [x] 6.2 Implement Policy & Gate Component core logic
     - Create PolicyGateComponent class with decision evaluation
     - Implement stage context analysis and constraint checking
     - Add deterministic prompt construction with scope constraints
     - _Requirements: 16.1, 16.4, 16.5, 16.6, 16.7_
 
-  - [ ] 6.3 Write property test for policy decision determinism
+  - [x] 6.3 Write property test for policy decision determinism
     - **Property 17: Policy Decision Determinism**
     - **Validates: Requirements 16.4, 16.6, 16.7**
 
-  - [ ] 6.4 Write contract test for policy component I/O
+  - [x] 6.4 Write contract test for policy component I/O
     - **Contract Test: Policy Component Interface**
     - Test input/output schema with golden files
     - **Validates: Requirements 16.2, 16.4**
 
-  - [ ] 6.5 Integrate Policy & Gate with workflow shells
+  - [x] 6.5 Integrate Policy & Gate with workflow shells
     - Connect policy evaluation to workflow triggers
     - Add policy decision blocking for inappropriate requests
     - _Requirements: 16.3_
     - **Test: Unjustified/unrelated submissions are blocked by policy checks**
 
-- [ ] 7. Functional Workflows - Real Outcomes
-  - [ ] 7.1 Implement Claude API integration
+- [x] 7. Functional Workflows - Real Outcomes
+  - [x] 7.1 Implement Claude API integration
     - Create Claude client with constrained prompt handling
     - Add workflow-specific prompt templates
     - Implement response parsing and validation
     - _Requirements: 4.2, 5.2, 6.2_
 
-  - [ ] 7.2 Write contract test for Claude output structure
+  - [x] 7.2 Write contract test for Claude output structure
     - **Contract Test: Claude Workflow Outputs**
     - Test triage, planning, prioritization output schemas
     - **Validates: Requirements 4.3, 5.2, 6.2**
 
-  - [ ] 7.3 Implement functional workflow logic
+  - [x] 7.3 Implement functional workflow logic
     - Add real triage analysis with problem assessment
     - Create planning workflow with implementation plans
     - Implement prioritization with value/effort analysis

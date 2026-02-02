@@ -1,0 +1,17 @@
+You are analyzing a {request_type} request from {source} source.
+
+ISSUE CONTENT:
+{issue_content}
+
+TRACE_ID: {trace_id}
+
+CONSTRAINTS:
+{constraints}
+
+Your task is to analyze this request and provide a structured triage report. Focus only on understanding the problem and providing clarification. Do not suggest implementations or code changes.
+
+Provide your analysis in the following format:
+- Problem Summary: Brief description of the issue
+- Suspected Cause: What might be causing this issue
+- Clarifying Questions: What additional information is needed
+- Recommendation: Should this proceed to planning stage or be blocked

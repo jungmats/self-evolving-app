@@ -49,6 +49,19 @@ class Request(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class PolicyDecision(Base):
+    """Policy decision model for audit trail of Policy & Gate Component decisions."""
+    __tablename__ = "policy_decisions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    trace_id = Column(String, nullable=False, index=True)
+    stage = Column(String, nullable=False)  # triage, plan, prioritize, implement
+    decision = Column(String, nullable=False)  # allow, review_required, block
+    reason = Column(Text, nullable=False)
+    constraints = Column(Text, nullable=True)  # JSON blob for constraint details
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 def generate_trace_id() -> str:
     """Generate a unique Trace_ID for tracking requests."""
     return f"trace-{uuid.uuid4().hex[:12]}"
