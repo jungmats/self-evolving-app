@@ -9,10 +9,8 @@ import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 from pathlib import Path
-from sqlalchemy.orm import Session
 
 from models import StageContext, ChangeContext, PolicyDecisionModel
-from database import PolicyDecision, get_db
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +29,8 @@ class PolicyGateComponent:
     artifact context, operational context, and change context.
     """
     
-    def __init__(self, db_session: Optional[Session] = None):
+    def __init__(self):
         """Initialize the Policy & Gate Component."""
-        self.db_session = db_session
         self._stage_constraints = self._load_stage_constraints()
         self._prompt_templates = self._load_prompt_templates()
     
@@ -105,8 +102,8 @@ class PolicyGateComponent:
                 }
             )
             
-            # Record decision for audit trail
-            self._record_policy_decision(context.trace_id, context.current_stage, decision)
+            # Record decision for audit trail (GitHub comments provide audit trail)
+            logger.info(f"Policy decision for trace_id {context.trace_id}, stage {context.current_stage}: {decision.decision}")
             
             return decision
             
@@ -174,8 +171,8 @@ class PolicyGateComponent:
                 }
             )
             
-            # Record decision for audit trail
-            self._record_policy_decision(trace_id, "implementation_review", decision)
+            # Record decision for audit trail (GitHub comments provide audit trail)
+            logger.info(f"Policy decision for trace_id {trace_id}, implementation review: {decision.decision}")
             
             return decision
             
@@ -326,29 +323,6 @@ class PolicyGateComponent:
             constraint_parts.append(f"MAX RESPONSE LENGTH: {constraints['max_response_length']} characters")
         
         return "\n".join(constraint_parts)
-    
-    def _record_policy_decision(self, trace_id: str, stage: str, decision: PolicyDecisionModel) -> None:
-        """Record policy decision in database for audit trail."""
-        if not self.db_session:
-            return
-        
-        try:
-            policy_record = PolicyDecision(
-                trace_id=trace_id,
-                stage=stage,
-                decision=decision.decision,
-                reason=decision.reason,
-                constraints=json.dumps(decision.constraints) if decision.constraints else None
-            )
-            
-            self.db_session.add(policy_record)
-            self.db_session.commit()
-            
-            logger.info(f"Recorded policy decision for trace_id {trace_id}, stage {stage}: {decision.decision}")
-            
-        except Exception as e:
-            logger.error(f"Failed to record policy decision: {str(e)}")
-            self.db_session.rollback()
     
     def _load_stage_constraints(self) -> Dict[str, Any]:
         """Load stage-specific constraints configuration."""
@@ -524,6 +498,6 @@ class PolicyGateComponent:
         return self._stage_constraints.get(stage, {}).get("allowed_request_types", [])
 
 
-def get_policy_gate_component(db_session: Optional[Session] = None) -> PolicyGateComponent:
+def get_policy_gate_component() -> PolicyGateComponent:
     """Factory function to get PolicyGateComponent instance."""
-    return PolicyGateComponent(db_session)
+    return PolicyGateComponent()
