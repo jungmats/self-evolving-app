@@ -66,7 +66,7 @@ jobs:
         run: |
           echo "🛡️ Evaluating policy gate for prioritization stage..."
           
-          policy_json=$(python3 .github/scripts/policy_gate_evaluation.py evaluate \
+          policy_json=$(python3 .github/scripts/policy_gate_evaluation.py evaluate-stage \
             --stage=prioritize \
             --issue-id=${{ github.event.issue.number }})
           

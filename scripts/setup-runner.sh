@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-RUNNER_VERSION="2.311.0"
+RUNNER_VERSION="2.331.0"
 RUNNER_DIR="$HOME/actions-runner"
 REPO_URL=""
 REGISTRATION_TOKEN=""
@@ -110,21 +110,32 @@ get_configuration() {
 setup_runner() {
     log_info "Setting up GitHub Actions runner..."
     
+    # Detect architecture
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "arm64" ]; then
+        RUNNER_ARCH="arm64"
+        log_info "Detected Apple Silicon (ARM64) architecture"
+    else
+        RUNNER_ARCH="x64"
+        log_info "Detected Intel (x64) architecture"
+    fi
+    
     # Create runner directory
     mkdir -p "$RUNNER_DIR"
     cd "$RUNNER_DIR"
     
     # Download runner if not already present
-    if [ ! -f "actions-runner-osx-x64-${RUNNER_VERSION}.tar.gz" ]; then
-        log_info "Downloading GitHub Actions runner v${RUNNER_VERSION}..."
-        curl -o "actions-runner-osx-x64-${RUNNER_VERSION}.tar.gz" -L \
-            "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-osx-x64-${RUNNER_VERSION}.tar.gz"
+    RUNNER_FILE="actions-runner-osx-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz"
+    if [ ! -f "$RUNNER_FILE" ]; then
+        log_info "Downloading GitHub Actions runner v${RUNNER_VERSION} for ${RUNNER_ARCH}..."
+        curl -o "$RUNNER_FILE" -L \
+            "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-osx-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz"
     fi
     
     # Extract if not already extracted
     if [ ! -f "run.sh" ]; then
         log_info "Extracting runner..."
-        tar xzf "./actions-runner-osx-x64-${RUNNER_VERSION}.tar.gz"
+        tar xzf "./$RUNNER_FILE"
     fi
     
     # Configure runner
