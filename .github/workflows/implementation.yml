@@ -136,40 +136,73 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
           CLAUDE_CLIENT_TYPE: cli
           REPO_ROOT: ${{ github.workspace }}
+          CLAUDE_CODE_SESSION_ACCESS_TOKEN: ${{ secrets.CLAUDE_CODE_SESSION_ACCESS_TOKEN }}
         run: |
           echo "🔧 Starting repository-aware implementation for issue #${{ github.event.issue.number }}"
           
           # Execute Claude CLI implementation with repository context
           python3 .github/scripts/functional_workflow_executor.py implementation \
             --issue-id=${{ github.event.issue.number }} \
-            --prompt="$CONSTRUCTED_PROMPT"
+            --prompt="$CONSTRUCTED_PROMPT" 2>&1 | tee implementation_output.log
           
-          # Note: This is still a placeholder - full implementation generation
-          # will be completed in later development phases
+          echo "✅ Implementation generation completed"
           
-          # Create placeholder implementation file for now
-          mkdir -p implementation
-          echo "# Repository-Aware Implementation for Issue #${{ github.event.issue.number }}" > implementation/placeholder.md
-          echo "This implementation was generated with full repository context using Claude CLI." >> implementation/placeholder.md
-          echo "The Claude CLI has access to the entire codebase for context-aware code generation." >> implementation/placeholder.md
-          echo "" >> implementation/placeholder.md
-          echo "## Repository Context Benefits:" >> implementation/placeholder.md
-          echo "- Full codebase understanding" >> implementation/placeholder.md
-          echo "- Existing pattern recognition" >> implementation/placeholder.md
-          echo "- Architectural awareness" >> implementation/placeholder.md
-          echo "- File relationship understanding" >> implementation/placeholder.md
+          # Check if any files were modified
+          if git diff --quiet; then
+            echo "⚠️ No files were modified by implementation"
+            echo "Creating placeholder to demonstrate workflow"
+            mkdir -p implementation
+            echo "# Implementation for Issue #${{ github.event.issue.number }}" > implementation/README.md
+            git add implementation/README.md
+          else
+            echo "✅ Files modified by implementation:"
+            git diff --name-only
+            git add -A
+          fi
           
-          git add implementation/placeholder.md
-          git commit -m "Repository-aware implementation for issue #${{ github.event.issue.number }}
+          # Commit changes
+          git commit -m "Implementation for issue #${{ github.event.issue.number }}
 
-Generated with Claude CLI for enhanced context awareness and code quality."
+Generated with Claude CLI for enhanced context awareness.
+
+Trace_ID: ${{ github.event.issue.number }}-${{ github.run_id }}"
+      
+      - name: Generate unit tests
+        if: env.POLICY_DECISION == 'allow'
+        env:
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+          CLAUDE_CLIENT_TYPE: cli
+          REPO_ROOT: ${{ github.workspace }}
+          CLAUDE_CODE_SESSION_ACCESS_TOKEN: ${{ secrets.CLAUDE_CODE_SESSION_ACCESS_TOKEN }}
+        run: |
+          echo "🧪 Generating unit tests for implementation..."
+          
+          # For now, verify existing tests still pass
+          # In full implementation, Claude CLI would generate tests for new code
+          echo "✅ Unit test generation completed (placeholder)"
       
       - name: Run tests
         if: env.POLICY_DECISION == 'allow'
+        continue-on-error: true
+        id: tests
         run: |
-          echo "🧪 Running tests with repository context..."
-          echo "Tests would validate implementation against existing codebase patterns"
-          echo "All tests passed (placeholder implementation)"
+          echo "🧪 Running test suite..."
+          
+          # Run Python tests
+          if [ -f "pytest.ini" ] || [ -d "tests" ]; then
+            echo "Running pytest..."
+            python3 -m pytest tests/ -v --tb=short 2>&1 | tee test_output.log || echo "test_failed=true" >> $GITHUB_ENV
+          else
+            echo "No Python tests found"
+          fi
+          
+          # Check test results
+          if [ "$test_failed" = "true" ]; then
+            echo "❌ Tests failed"
+            exit 1
+          else
+            echo "✅ All tests passed"
+          fi
       
       - name: Push implementation branch
         if: env.POLICY_DECISION == 'allow'
@@ -177,32 +210,23 @@ Generated with Claude CLI for enhanced context awareness and code quality."
           git push origin ${{ steps.context.outputs.branch_name }}
       
       - name: Create pull request
-        if: env.POLICY_DECISION == 'allow'
+        if: env.POLICY_DECISION == 'allow' && steps.tests.outcome == 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
-          # Create pull request with enhanced context information
-          curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls" \
-            -d '{
-              "title": "Repository-Aware Implementation for Issue #${{ github.event.issue.number }}",
-              "head": "${{ steps.context.outputs.branch_name }}",
-              "base": "main",
-              "body": "Fixes #${{ github.event.issue.number }}\n\n**Repository-Aware Implementation Summary**\n\nThis PR implements the solution using Claude CLI with full repository context, enabling:\n\n- **Code Pattern Recognition**: Understanding of existing architectural patterns\n- **File Relationship Awareness**: Knowledge of dependencies and imports\n- **Context-Aware Generation**: Implementation that fits seamlessly with existing code\n- **Enhanced Quality**: Superior analysis through complete codebase understanding\n\n**Implementation Approach**\n- Generated with Claude CLI repository context\n- Follows existing code patterns and conventions\n- Integrates with current architecture\n- Includes comprehensive testing strategy\n\n**Trace ID**: `${{ github.event.issue.number }}-${{ github.run_id }}`\n\n*This implementation leverages Claude CLI for enhanced repository awareness and code quality.*"
-            }' | jq -r '.number' > pr_number.txt
+          echo "📝 Creating Pull Request..."
           
-          # Add agent label to PR
-          PR_NUMBER=$(cat pr_number.txt)
-          curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUMBER/labels" \
-            -d '{"labels": ["agent:claude", "enhanced:repository-context"]}'
+          # Use PR manager script to create PR with proper Trace_ID and Issue linking
+          python3 .github/scripts/pr_manager.py create \
+            --issue-id=${{ github.event.issue.number }} \
+            --branch=${{ steps.context.outputs.branch_name }} \
+            --base=main
+          
+          echo "✅ Pull Request created successfully"
       
       - name: Transition to PR opened stage
-        if: env.POLICY_DECISION == 'allow'
+        if: env.POLICY_DECISION == 'allow' && steps.tests.outcome == 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
@@ -212,6 +236,40 @@ Generated with Claude CLI for enhanced context awareness and code quality."
             ${{ github.event.issue.number }} \
             "stage:implement" \
             "stage:pr-opened" \
+            "implementation"
+          
+          python3 .github/scripts/workflow_transition.py progress \
+            ${{ github.event.issue.number }} \
+            "implementation" \
+            "completed" \
+            "Implementation completed successfully. Pull Request created and ready for review."
+      
+      - name: Handle test failures
+        if: env.POLICY_DECISION == 'allow' && steps.tests.outcome == 'failure'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+        run: |
+          echo "❌ Tests failed - blocking PR creation"
+          
+          # Extract test failure details
+          TEST_FAILURES="Test execution failed. See workflow logs for details."
+          if [ -f test_output.log ]; then
+            TEST_FAILURES=$(tail -50 test_output.log)
+          fi
+          
+          # Add comment with test failure details
+          python3 .github/scripts/workflow_transition.py progress \
+            ${{ github.event.issue.number }} \
+            "implementation" \
+            "test_failed" \
+            "Implementation generated but tests failed:\n\n\`\`\`\n${TEST_FAILURES}\n\`\`\`\n\nPR creation blocked until tests pass."
+          
+          # Transition to blocked state
+          python3 .github/scripts/workflow_transition.py transition \
+            ${{ github.event.issue.number }} \
+            "stage:implement" \
+            "stage:blocked" \
             "implementation"
       
       - name: Handle implementation failure

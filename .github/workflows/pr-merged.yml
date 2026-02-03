@@ -1,0 +1,82 @@
+name: PR Merged Workflow
+
+# Trigger when a PR is closed
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  issues: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  handle-pr-merge:
+    name: Handle PR Merge
+    runs-on: [self-hosted, solops-local]
+    if: |
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'agent:claude')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install Python dependencies
+        run: |
+          echo "📦 Installing Python dependencies..."
+          python3 -m pip install --user -r requirements.txt --force-reinstall --no-cache-dir
+          echo "✅ Dependencies installed"
+      
+      - name: Extract linked issue
+        id: extract_issue
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          echo "🔍 Extracting linked issue from PR body..."
+          
+          # Extract issue number from "Fixes #123" or "Refs #123" pattern
+          ISSUE_NUMBER=$(echo "$PR_BODY" | grep -oE "(Fixes|Refs) #[0-9]+" | head -1 | grep -oE "[0-9]+")
+          
+          if [ -z "$ISSUE_NUMBER" ]; then
+            echo "⚠️ No linked issue found in PR body"
+            echo "issue_found=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Found linked issue: #$ISSUE_NUMBER"
+            echo "issue_found=true" >> $GITHUB_OUTPUT
+            echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Transition issue to awaiting deploy approval
+        if: steps.extract_issue.outputs.issue_found == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+        run: |
+          echo "🔄 Transitioning issue to awaiting deploy approval..."
+          
+          ISSUE_NUMBER=${{ steps.extract_issue.outputs.issue_number }}
+          
+          # Add progress comment
+          python3 .github/scripts/workflow_transition.py progress \
+            $ISSUE_NUMBER \
+            "pr_merge" \
+            "completed" \
+            "Pull Request #${{ github.event.pull_request.number }} has been merged. Implementation is now ready for deployment approval."
+          
+          # Transition to awaiting deploy approval
+          python3 .github/scripts/workflow_transition.py transition \
+            $ISSUE_NUMBER \
+            "stage:pr-opened" \
+            "stage:awaiting-deploy-approval" \
+            "pr_merge"
+          
+          echo "✅ Issue transitioned to awaiting deploy approval"
+      
+      - name: Handle missing issue link
+        if: steps.extract_issue.outputs.issue_found == 'false'
+        run: |
+          echo "⚠️ PR #${{ github.event.pull_request.number }} was merged but no linked issue was found"
+          echo "This may indicate a manual PR or missing issue reference"
+          echo "PR Title: ${{ github.event.pull_request.title }}"
+          echo "PR Body: ${{ github.event.pull_request.body }}"
