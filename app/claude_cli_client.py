@@ -1,11 +1,11 @@
 """Claude CLI client for the Self-Evolving Web Application.
 
-This module provides a client for interacting with Claude CLI with repository context,
-workflow-specific prompt templates, and response parsing and validation.
+This module provides a client for interacting with Claude CLI with structured prompts,
+workflow-specific templates, and response parsing and validation.
 
-The Claude CLI integration provides superior analysis through full repository context,
-enabling Claude to understand code dependencies, architectural patterns, and provide
-more accurate implementation suggestions.
+The Claude CLI integration provides analysis through explicit context provided in prompts,
+enabling Claude to understand the application architecture and provide accurate suggestions
+without requiring repository access tokens.
 """
 
 import os
@@ -53,10 +53,10 @@ class ClaudeCLIResponse:
 
 class ClaudeCLIClient:
     """
-    Claude CLI client with repository context and constrained prompt handling.
+    Claude CLI client with structured prompts and constrained response handling.
     
-    Provides methods for workflow-specific Claude interactions with full repository
-    context, enabling superior code analysis and implementation suggestions.
+    Provides methods for workflow-specific Claude interactions with explicit context
+    provided through prompts, enabling accurate analysis without repository access tokens.
     """
     
     def __init__(
@@ -64,7 +64,7 @@ class ClaudeCLIClient:
         repository_root: Optional[str] = None,
         claude_command: str = "claude",
         timeout: int = 300,
-        model: str = "claude-3-5-sonnet-20241022"
+        model: str = "sonnet"  # Use alias instead of full model name
     ):
         """
         Initialize Claude CLI client.
@@ -111,19 +111,42 @@ class ClaudeCLIClient:
             raise ClaudeCLIError(f"Failed to verify Claude CLI: {str(e)}")
     
     def _verify_repository_context(self) -> None:
-        """Verify repository context is available."""
+        """Verify repository root exists for context information (not used for Claude CLI access)."""
         if not self.repository_root.exists():
-            raise ClaudeCLIError(f"Repository root does not exist: {self.repository_root}")
-        
-        # Check for common repository indicators
-        repo_indicators = [".git", "requirements.txt", "package.json", "pyproject.toml"]
-        has_indicator = any((self.repository_root / indicator).exists() for indicator in repo_indicators)
-        
-        if not has_indicator:
-            logger.warning(f"No repository indicators found in {self.repository_root}")
+            logger.warning(f"Repository root does not exist: {self.repository_root}")
         else:
-            logger.info(f"Repository context verified: {self.repository_root}")
+            logger.info(f"Repository root found: {self.repository_root} (used for context only)")
     
+    def _get_session_token(self) -> Optional[str]:
+        """
+        Get Claude session token from environment or keychain.
+        
+        Returns:
+            Session token if available, None otherwise
+        """
+        # First try environment variable
+        token = os.getenv('CLAUDE_CODE_SESSION_ACCESS_TOKEN')
+        if token:
+            return token
+        
+        # Try to get from macOS keychain (for local development)
+        try:
+            result = subprocess.run([
+                'security', 'find-generic-password', 
+                '-s', 'Claude Code-credentials', 
+                '-w'
+            ], capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                import json
+                credentials = json.loads(result.stdout.strip())
+                return credentials.get('claudeAiOauth', {}).get('accessToken')
+        except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError, Exception):
+            # Keychain access failed, continue without token
+            pass
+        
+        return None
+
     def _execute_claude_command(
         self,
         prompt: str,
@@ -145,8 +168,8 @@ class ClaudeCLIClient:
             ClaudeCLIError: If command execution fails
         """
         try:
-            # Prepare command arguments
-            cmd_args = [self.claude_command]
+            # Prepare command arguments - use --print for non-interactive mode
+            cmd_args = [self.claude_command, "--print"]
             
             # Add model specification if supported
             if self.model:
@@ -156,8 +179,29 @@ class ClaudeCLIClient:
             if additional_args:
                 cmd_args.extend(additional_args)
             
-            # Set working directory (use temp dir to avoid repository context issues)
-            work_dir = tempfile.gettempdir()  # Use temp directory instead of repository
+            # Use repository root as working directory for context
+            work_dir = str(self.repository_root)
+            
+            # Prepare environment with session token
+            env = os.environ.copy()
+            session_token = self._get_session_token()
+            if session_token:
+                env['CLAUDE_CODE_SESSION_ACCESS_TOKEN'] = session_token
+            
+            # DETAILED LOGGING
+            print(f"🔍 CLAUDE CLI DEBUG:")
+            print(f"   Command: {' '.join(cmd_args)}")
+            print(f"   Working Directory: {work_dir}")
+            print(f"   Repository Root: {self.repository_root}")
+            print(f"   Session Token: {'✅ Available' if session_token else '❌ Not Found'}")
+            print(f"   Environment Variables:")
+            for key in ['CLAUDE_CODE_SESSION_ACCESS_TOKEN', 'REPO_ROOT', 'PYTHONPATH']:
+                value = env.get(key, 'NOT SET')
+                if 'TOKEN' in key and value != 'NOT SET':
+                    print(f"     {key}: {value[:10]}...{value[-4:] if len(value) > 4 else '***'}")
+                else:
+                    print(f"     {key}: {value}")
+            print(f"   Prompt length: {len(prompt)} characters")
             
             # Create temporary file for prompt if it's long
             if len(prompt) > 1000:
@@ -173,6 +217,7 @@ class ClaudeCLIClient:
                     result = subprocess.run(
                         cmd_args,
                         cwd=work_dir,
+                        env=env,
                         capture_output=True,
                         text=True,
                         timeout=self.timeout
@@ -188,15 +233,34 @@ class ClaudeCLIClient:
                 result = subprocess.run(
                     cmd_args,
                     cwd=work_dir,
+                    env=env,
                     capture_output=True,
                     text=True,
                     timeout=self.timeout
                 )
             
+            # DETAILED OUTPUT LOGGING
+            print(f"🔍 CLAUDE CLI RESULT:")
+            print(f"   Return Code: {result.returncode}")
+            print(f"   STDOUT: {result.stdout[:200]}{'...' if len(result.stdout) > 200 else ''}")
+            print(f"   STDERR: {result.stderr[:200]}{'...' if len(result.stderr) > 200 else ''}")
+            
             # Check for errors
             if result.returncode != 0:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
-                raise ClaudeCLIError(f"Claude CLI command failed: {error_msg}")
+                
+                # Special handling for session token errors
+                if "session token" in error_msg.lower() or "CLAUDE_CODE_SESSION_ACCESS_TOKEN" in error_msg:
+                    if not session_token:
+                        raise ClaudeCLIError(
+                            "Claude CLI requires session token for repository context. "
+                            "Please set CLAUDE_CODE_SESSION_ACCESS_TOKEN environment variable "
+                            "or ensure Claude CLI is properly authenticated."
+                        )
+                    else:
+                        raise ClaudeCLIError(f"Claude CLI session token error: {error_msg}")
+                
+                raise ClaudeCLIError(f"Claude CLI command failed (exit code {result.returncode}): {error_msg}")
             
             # Parse response
             content = result.stdout.strip()
@@ -207,7 +271,7 @@ class ClaudeCLIClient:
                 content=content,
                 model=self.model,
                 timestamp=datetime.utcnow(),
-                repository_context=True,
+                repository_context=True,  # Now using repository context
                 command_used=" ".join(cmd_args[:3])  # First 3 args for logging
             )
             
