@@ -24,6 +24,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
+      - name: Install Python dependencies
+        run: |
+          echo "📦 Installing Python dependencies for runner environment..."
+          echo "Python version: $(python3 --version)"
+          echo "Python path: $(which python3)"
+          echo "Architecture: $(uname -m)"
+          echo "Current working directory: $(pwd)"
+          echo "PYTHONPATH will be: ${{ github.workspace }}/app:${{ github.workspace }}"
+          
+          # Try to import pydantic first to see current state
+          echo "Testing current pydantic installation..."
+          python3 -c "import pydantic; print('Current pydantic version:', pydantic.__version__)" || echo "Pydantic not available or broken"
+          
+          # Install dependencies
+          python3 -m pip install --user -r requirements.txt --force-reinstall --no-cache-dir
+          
+          # Verify installation
+          echo "Verifying pydantic installation..."
+          python3 -c "import pydantic; print('Installed pydantic version:', pydantic.__version__)"
+          echo "✅ Dependencies installed successfully"
+      
       - name: Extract issue context
         id: context
         run: |
@@ -94,12 +115,28 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
           CLAUDE_CLIENT_TYPE: cli
           REPO_ROOT: ${{ github.workspace }}
+          CLAUDE_CODE_SESSION_ACCESS_TOKEN: ${{ secrets.CLAUDE_CODE_SESSION_ACCESS_TOKEN }}
         run: |
           echo "⚖️ Starting repository-aware prioritization workflow for issue #${{ github.event.issue.number }}"
+          echo "🔍 Environment check:"
+          echo "  PYTHONPATH: $PYTHONPATH"
+          echo "  REPO_ROOT: $REPO_ROOT"
+          echo "  CLAUDE_CLIENT_TYPE: $CLAUDE_CLIENT_TYPE"
+          echo "  Python version: $(python3 --version)"
           
+          # Test imports before running
+          echo "🧪 Testing Python imports..."
+          python3 -c "import sys; print('Python path:', sys.path)" || echo "Failed to check Python path"
+          python3 -c "from workflow_engine import WorkflowEngine; print('✅ WorkflowEngine imported')" || echo "❌ Failed to import WorkflowEngine"
+          python3 -c "from claude_client_factory import get_claude_client; print('✅ Claude client factory imported')" || echo "❌ Failed to import claude_client_factory"
+          
+          echo "🚀 Executing prioritization workflow..."
+          set -e  # Exit on error
           python3 .github/scripts/functional_workflow_executor.py prioritization \
             --issue-id=${{ github.event.issue.number }} \
-            --prompt="$CONSTRUCTED_PROMPT"
+            --prompt="$CONSTRUCTED_PROMPT" 2>&1 | tee prioritization_output.log
+          
+          echo "✅ Prioritization workflow execution completed"
       
       - name: Handle Policy Block
         if: env.POLICY_DECISION == 'block'
@@ -195,12 +232,23 @@ jobs:
         run: |
           echo "❌ Prioritization workflow failed - adding detailed error comment to issue"
           
+          # Capture any available logs
+          ERROR_DETAILS="Prioritization Workflow Failed - Repository-aware workflow execution failed during priority assessment."
+          
+          if [ -f prioritization_output.log ]; then
+            echo "📋 Prioritization output log found:"
+            cat prioritization_output.log
+            ERROR_DETAILS="$ERROR_DETAILS\n\nLast output:\n\`\`\`\n$(tail -20 prioritization_output.log)\n\`\`\`"
+          else
+            echo "⚠️ No prioritization output log found"
+          fi
+          
           # Create detailed error comment
           python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "prioritization" \
             "failed" \
-            "Prioritization Workflow Failed - Repository-aware workflow execution failed during priority assessment. Check GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "$ERROR_DETAILS\n\nCheck GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
           # Transition to blocked state
           python3 .github/scripts/workflow_transition.py transition \
