@@ -119,17 +119,25 @@ class PolicyGateEvaluator:
             workflow_artifacts = []
             try:
                 comments = self.github_client.get_issue_comments(issue_number)
+                print(f"Found {len(comments)} comments on issue #{issue_number}")
                 for comment in comments:
                     comment_body = comment.body or ""
+                    print(f"Checking comment (first 100 chars): {comment_body[:100]}")
                     if "Triage Analysis Completed" in comment_body:
+                        print("  ✅ Found triage_report artifact")
                         workflow_artifacts.append("triage_report")
                     elif "Implementation Plan Completed" in comment_body:
+                        print("  ✅ Found implementation_plan artifact")
                         workflow_artifacts.append("implementation_plan")
                     elif "Priority Assessment Completed" in comment_body:
+                        print("  ✅ Found priority_assessment artifact")
                         workflow_artifacts.append("priority_assessment")
                     elif "Implementation approved" in comment_body.lower():
+                        print("  ✅ Found human_approval artifact")
                         workflow_artifacts.append("human_approval")
-            except Exception:
+                print(f"Total artifacts found: {workflow_artifacts}")
+            except Exception as e:
+                print(f"Error extracting workflow artifacts: {e}")
                 pass  # Don't fail if we can't get comments
             
             return {
