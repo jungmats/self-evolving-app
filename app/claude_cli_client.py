@@ -20,6 +20,101 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+# JSON Schemas for structured output
+TRIAGE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "problem_summary": {
+            "type": "string",
+            "description": "Clear summary of the reported problem or request"
+        },
+        "suspected_cause": {
+            "type": "string",
+            "description": "Analysis of the likely cause or nature of the issue"
+        },
+        "clarifying_questions": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Questions that would help clarify the issue (can be empty)"
+        },
+        "recommendation": {
+            "type": "string",
+            "enum": ["proceed", "block", "review_required"],
+            "description": "Whether to proceed with this issue, block it, or require human review"
+        },
+        "recommendation_reason": {
+            "type": "string",
+            "description": "Explanation for the recommendation"
+        }
+    },
+    "required": ["problem_summary", "suspected_cause", "clarifying_questions", "recommendation", "recommendation_reason"]
+}
+
+PLANNING_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "proposed_approach": {
+            "type": "string",
+            "description": "Detailed description of the implementation approach"
+        },
+        "affected_files": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of files that will need to be modified"
+        },
+        "acceptance_criteria": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Criteria that must be met for the implementation to be considered complete"
+        },
+        "unit_test_plan": {
+            "type": "string",
+            "description": "Plan for unit tests to verify the implementation"
+        },
+        "risks_and_considerations": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Potential risks and things to consider"
+        },
+        "effort_estimate": {
+            "type": "string",
+            "enum": ["small", "medium", "large"],
+            "description": "Relative effort estimate for the implementation"
+        }
+    },
+    "required": ["proposed_approach", "affected_files", "acceptance_criteria", "unit_test_plan", "risks_and_considerations", "effort_estimate"]
+}
+
+PRIORITIZATION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "expected_user_value": {
+            "type": "string",
+            "description": "Assessment of the value this will provide to users"
+        },
+        "implementation_effort": {
+            "type": "string",
+            "enum": ["low", "medium", "high"],
+            "description": "Estimated implementation effort"
+        },
+        "risk_assessment": {
+            "type": "string",
+            "description": "Assessment of risks involved in implementing this"
+        },
+        "priority_recommendation": {
+            "type": "string",
+            "enum": ["p0", "p1", "p2"],
+            "description": "Recommended priority level (p0=critical, p1=high, p2=normal)"
+        },
+        "justification": {
+            "type": "string",
+            "description": "Justification for the priority recommendation"
+        }
+    },
+    "required": ["expected_user_value", "implementation_effort", "risk_assessment", "priority_recommendation", "justification"]
+}
+
+
 class ClaudeCLIError(Exception):
     """Custom exception for Claude CLI errors."""
     pass
@@ -149,6 +244,7 @@ class ClaudeCLIClient:
     def _execute_claude_command(
         self,
         prompt: str,
+        json_schema: Optional[Dict[str, Any]] = None,
         additional_args: Optional[List[str]] = None,
         working_directory: Optional[str] = None
     ) -> ClaudeCLIResponse:
@@ -157,6 +253,7 @@ class ClaudeCLIClient:
 
         Args:
             prompt: Prompt to send to Claude
+            json_schema: Optional JSON schema for structured output
             additional_args: Additional CLI arguments
             working_directory: Working directory for command execution
 
@@ -167,9 +264,13 @@ class ClaudeCLIClient:
             ClaudeCLIError: If command execution fails
         """
         try:
-            # Build command: claude -p [--model <model>] [additional_args] [prompt]
-            # Note: -p/--print enables non-interactive mode
+            # Build command: claude -p [--output-format json --json-schema <schema>] [--model <model>] [additional_args] [prompt]
             cmd_args = [self.claude_command, "-p"]
+
+            # Add JSON schema output if provided (for structured, deterministic output)
+            if json_schema:
+                cmd_args.extend(["--output-format", "json"])
+                cmd_args.extend(["--json-schema", json.dumps(json_schema)])
 
             # Only specify model if explicitly set (otherwise use account default)
             if self.model:
@@ -197,10 +298,11 @@ class ClaudeCLIClient:
 
             # Debug logging
             print(f"🔍 CLAUDE CLI DEBUG:")
-            print(f"   Command: {' '.join(cmd_args[:5])}{'...' if len(cmd_args) > 5 else ''}")
+            print(f"   Command: {' '.join(cmd_args[:7])}{'...' if len(cmd_args) > 7 else ''}")
             print(f"   Working Directory: {work_dir}")
             print(f"   Session Token: {'✅ Available' if session_token else '❌ Not Found'}")
             print(f"   Model: {self.model or '(account default)'}")
+            print(f"   JSON Schema: {'✅ Enabled' if json_schema else '❌ Disabled'}")
             print(f"   Prompt length: {len(prompt)} characters")
             print(f"   Input method: {'stdin' if use_stdin else 'positional arg'}")
 
@@ -230,9 +332,9 @@ class ClaudeCLIClient:
             # Result logging
             print(f"🔍 CLAUDE CLI RESULT:")
             print(f"   Return Code: {result.returncode}")
-            stdout_preview = result.stdout[:200] if result.stdout else "(empty)"
+            stdout_preview = result.stdout[:300] if result.stdout else "(empty)"
             stderr_preview = result.stderr[:200] if result.stderr else "(empty)"
-            print(f"   STDOUT: {stdout_preview}{'...' if len(result.stdout or '') > 200 else ''}")
+            print(f"   STDOUT: {stdout_preview}{'...' if len(result.stdout or '') > 300 else ''}")
             print(f"   STDERR: {stderr_preview}{'...' if len(result.stderr or '') > 200 else ''}")
 
             # Check for errors
@@ -276,41 +378,43 @@ class ClaudeCLIClient:
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
-        additional_context: Optional[str] = None
+        additional_context: Optional[str] = None,
+        json_schema: Optional[Dict[str, Any]] = None
     ) -> ClaudeCLIResponse:
         """
         Generate response from Claude CLI with repository context.
-        
+
         Args:
             prompt: User prompt to send to Claude
             system_prompt: Optional system prompt for context
             additional_context: Additional context to include
-            
+            json_schema: Optional JSON schema for structured output
+
         Returns:
             ClaudeCLIResponse with content and metadata
-            
+
         Raises:
             ClaudeCLIError: If command execution fails
         """
         try:
             # Construct full prompt with context
             full_prompt_parts = []
-            
+
             if system_prompt:
                 full_prompt_parts.append(f"SYSTEM: {system_prompt}")
                 full_prompt_parts.append("")
-            
+
             if additional_context:
                 full_prompt_parts.append(f"CONTEXT: {additional_context}")
                 full_prompt_parts.append("")
-            
+
             full_prompt_parts.append(f"USER: {prompt}")
-            
+
             full_prompt = "\n".join(full_prompt_parts)
-            
+
             # Execute Claude CLI command
-            return self._execute_claude_command(full_prompt)
-            
+            return self._execute_claude_command(full_prompt, json_schema=json_schema)
+
         except Exception as e:
             if isinstance(e, ClaudeCLIError):
                 raise
@@ -319,44 +423,51 @@ class ClaudeCLIClient:
     def triage_analysis(self, constrained_prompt: str, trace_id: str) -> Dict[str, Any]:
         """
         Perform triage analysis using Claude CLI with repository context.
-        
+
         Args:
             constrained_prompt: Policy-constrained prompt from PolicyGateComponent
             trace_id: Trace ID for logging and correlation
-            
+
         Returns:
             Parsed triage analysis with structured fields
-            
+
         Raises:
             ClaudeCLIError: If analysis fails
             ClaudeResponseValidationError: If response format is invalid
         """
         try:
             logger.info(f"Starting repository-aware triage analysis for trace_id: {trace_id}")
-            
+
             system_prompt = (
                 "You are a technical triage analyst with full access to the repository context. "
                 "Analyze the provided issue using your understanding of the codebase structure, "
-                "existing patterns, and architectural decisions. Respond in the exact format "
-                "requested. Be concise but thorough. Focus only on understanding the problem, "
-                "not on implementation."
+                "existing patterns, and architectural decisions. Be concise but thorough. "
+                "Focus only on understanding the problem, not on implementation."
             )
-            
+
             additional_context = (
                 f"Repository: {self.repository_root}\n"
                 f"Trace ID: {trace_id}\n"
                 "You have access to all files in this repository for context."
             )
-            
+
             response = self.generate_response(
                 prompt=constrained_prompt,
                 system_prompt=system_prompt,
-                additional_context=additional_context
+                additional_context=additional_context,
+                json_schema=TRIAGE_SCHEMA
             )
-            
-            # Parse and validate triage response
-            parsed_response = self._parse_triage_response(response.content, trace_id)
-            
+
+            # Parse JSON response
+            parsed_response = self._parse_json_response(response.content, "triage", trace_id)
+
+            # Validate recommendation field
+            recommendation = parsed_response.get("recommendation", "").lower()
+            if recommendation not in ["proceed", "block", "review_required"]:
+                raise ClaudeResponseValidationError(
+                    f"Invalid triage recommendation: {recommendation} (trace_id: {trace_id})"
+                )
+
             # Add metadata
             parsed_response["_metadata"] = {
                 "trace_id": trace_id,
@@ -366,10 +477,10 @@ class ClaudeCLIClient:
                 "repository_context": response.repository_context,
                 "command_used": response.command_used
             }
-            
+
             logger.info(f"Completed repository-aware triage analysis for trace_id: {trace_id}")
             return parsed_response
-            
+
         except ClaudeResponseValidationError:
             raise
         except ClaudeCLIError:
@@ -380,45 +491,53 @@ class ClaudeCLIClient:
     def planning_analysis(self, constrained_prompt: str, trace_id: str) -> Dict[str, Any]:
         """
         Perform planning analysis using Claude CLI with repository context.
-        
+
         Args:
             constrained_prompt: Policy-constrained prompt from PolicyGateComponent
             trace_id: Trace ID for logging and correlation
-            
+
         Returns:
             Parsed planning analysis with structured fields
-            
+
         Raises:
             ClaudeCLIError: If analysis fails
             ClaudeResponseValidationError: If response format is invalid
         """
         try:
             logger.info(f"Starting repository-aware planning analysis for trace_id: {trace_id}")
-            
+
             system_prompt = (
                 "You are a technical architect with full access to the repository context. "
                 "Create detailed implementation plans by understanding the existing codebase "
                 "structure, patterns, and dependencies. Reference specific files and functions "
                 "where appropriate. Focus on approach, design, and testing strategy without "
-                "writing actual code. Respond in the exact format requested."
+                "writing actual code."
             )
-            
+
             additional_context = (
                 f"Repository: {self.repository_root}\n"
                 f"Trace ID: {trace_id}\n"
                 "You can reference any file in the repository and understand the full "
                 "codebase architecture for your planning."
             )
-            
+
             response = self.generate_response(
                 prompt=constrained_prompt,
                 system_prompt=system_prompt,
-                additional_context=additional_context
+                additional_context=additional_context,
+                json_schema=PLANNING_SCHEMA
             )
-            
-            # Parse and validate planning response
-            parsed_response = self._parse_planning_response(response.content, trace_id)
-            
+
+            # Parse JSON response
+            parsed_response = self._parse_json_response(response.content, "planning", trace_id)
+
+            # Validate affected_files is not empty
+            affected_files = parsed_response.get("affected_files", [])
+            if not affected_files:
+                raise ClaudeResponseValidationError(
+                    f"Planning response must include affected files (trace_id: {trace_id})"
+                )
+
             # Add metadata
             parsed_response["_metadata"] = {
                 "trace_id": trace_id,
@@ -428,10 +547,10 @@ class ClaudeCLIClient:
                 "repository_context": response.repository_context,
                 "command_used": response.command_used
             }
-            
+
             logger.info(f"Completed repository-aware planning analysis for trace_id: {trace_id}")
             return parsed_response
-            
+
         except ClaudeResponseValidationError:
             raise
         except ClaudeCLIError:
@@ -442,45 +561,53 @@ class ClaudeCLIClient:
     def prioritization_analysis(self, constrained_prompt: str, trace_id: str) -> Dict[str, Any]:
         """
         Perform prioritization analysis using Claude CLI with repository context.
-        
+
         Args:
             constrained_prompt: Policy-constrained prompt from PolicyGateComponent
             trace_id: Trace ID for logging and correlation
-            
+
         Returns:
             Parsed prioritization analysis with structured fields
-            
+
         Raises:
             ClaudeCLIError: If analysis fails
             ClaudeResponseValidationError: If response format is invalid
         """
         try:
             logger.info(f"Starting repository-aware prioritization analysis for trace_id: {trace_id}")
-            
+
             system_prompt = (
                 "You are a product manager with full access to the repository context. "
                 "Assess priorities by understanding the codebase complexity, existing "
                 "technical debt, and architectural implications. Evaluate user value, "
                 "effort, and risk with deep understanding of the implementation context. "
-                "Do not make implementation decisions. Respond in the exact format requested."
+                "Do not make implementation decisions."
             )
-            
+
             additional_context = (
                 f"Repository: {self.repository_root}\n"
                 f"Trace ID: {trace_id}\n"
                 "You can analyze the codebase to understand implementation complexity "
                 "and architectural impact for accurate prioritization."
             )
-            
+
             response = self.generate_response(
                 prompt=constrained_prompt,
                 system_prompt=system_prompt,
-                additional_context=additional_context
+                additional_context=additional_context,
+                json_schema=PRIORITIZATION_SCHEMA
             )
-            
-            # Parse and validate prioritization response
-            parsed_response = self._parse_prioritization_response(response.content, trace_id)
-            
+
+            # Parse JSON response
+            parsed_response = self._parse_json_response(response.content, "prioritization", trace_id)
+
+            # Validate priority_recommendation
+            priority = parsed_response.get("priority_recommendation", "").lower()
+            if priority not in ["p0", "p1", "p2"]:
+                raise ClaudeResponseValidationError(
+                    f"Invalid priority recommendation: {priority} (trace_id: {trace_id})"
+                )
+
             # Add metadata
             parsed_response["_metadata"] = {
                 "trace_id": trace_id,
@@ -490,10 +617,10 @@ class ClaudeCLIClient:
                 "repository_context": response.repository_context,
                 "command_used": response.command_used
             }
-            
+
             logger.info(f"Completed repository-aware prioritization analysis for trace_id: {trace_id}")
             return parsed_response
-            
+
         except ClaudeResponseValidationError:
             raise
         except ClaudeCLIError:
@@ -563,28 +690,76 @@ class ClaudeCLIClient:
         except Exception as e:
             raise ClaudeCLIError(f"Implementation generation failed for trace_id {trace_id}: {str(e)}")
     
+    def _parse_json_response(self, content: str, workflow_type: str, trace_id: str) -> Dict[str, Any]:
+        """
+        Parse JSON response from Claude CLI with --output-format json.
+
+        The CLI returns a JSON object with metadata and the structured output.
+        Structure: {"result": "...", "session_id": "...", "structured_output": {...}}
+
+        Args:
+            content: Raw JSON response from Claude CLI
+            workflow_type: Type of workflow (for error messages)
+            trace_id: Trace ID for logging
+
+        Returns:
+            Parsed structured output dictionary
+
+        Raises:
+            ClaudeResponseValidationError: If JSON parsing fails
+        """
+        try:
+            # Parse the outer JSON response
+            response_data = json.loads(content)
+
+            # The structured output is in the 'structured_output' field when using --json-schema
+            if "structured_output" in response_data:
+                return response_data["structured_output"]
+
+            # Fallback: if no structured_output, try to parse 'result' as JSON
+            if "result" in response_data:
+                result = response_data["result"]
+                if isinstance(result, dict):
+                    return result
+                # Try parsing result as JSON string
+                try:
+                    return json.loads(result)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            # If neither works, return the whole response
+            raise ClaudeResponseValidationError(
+                f"{workflow_type.title()} response missing structured_output field (trace_id: {trace_id})"
+            )
+
+        except json.JSONDecodeError as e:
+            raise ClaudeResponseValidationError(
+                f"Failed to parse {workflow_type} JSON response: {e} (trace_id: {trace_id})"
+            )
+
+    # Legacy text parsing methods (kept for backwards compatibility)
     def _parse_triage_response(self, content: str, trace_id: str) -> Dict[str, Any]:
-        """Parse and validate triage response format."""
+        """Parse and validate triage response format (legacy text format)."""
         required_sections = [
             "Problem Summary",
-            "Suspected Cause", 
+            "Suspected Cause",
             "Clarifying Questions",
             "Recommendation"
         ]
-        
+
         parsed = self._parse_structured_response(content, required_sections, "triage", trace_id)
-        
+
         # Validate recommendation
         recommendation = parsed.get("recommendation", "").lower()
         if "proceed" not in recommendation and "block" not in recommendation:
             raise ClaudeResponseValidationError(
                 f"Triage recommendation must contain 'proceed' or 'block' (trace_id: {trace_id})"
             )
-        
+
         return parsed
-    
+
     def _parse_planning_response(self, content: str, trace_id: str) -> Dict[str, Any]:
-        """Parse and validate planning response format."""
+        """Parse and validate planning response format (legacy text format)."""
         required_sections = [
             "Proposed Approach",
             "Affected Files",
@@ -593,18 +768,18 @@ class ClaudeCLIClient:
             "Risks and Considerations",
             "Effort Estimate"
         ]
-        
+
         parsed = self._parse_structured_response(content, required_sections, "planning", trace_id)
-        
+
         # Validate affected files section
         affected_files = parsed.get("affected_files", "")
         if not affected_files or len(affected_files.strip()) < 10:
             raise ClaudeResponseValidationError(
                 f"Planning response must include specific affected files (trace_id: {trace_id})"
             )
-        
+
         return parsed
-    
+
     def _parse_prioritization_response(self, content: str, trace_id: str) -> Dict[str, Any]:
         """Parse and validate prioritization response format."""
         required_sections = [
