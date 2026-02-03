@@ -18,7 +18,7 @@ jobs:
       github.event.label.name == 'stage:prioritize' && 
       github.event.action == 'labeled' &&
       github.event.issue.user.type != 'Bot' &&
-      github.repository_owner == github.actor
+      (github.repository_owner == github.actor || github.actor == 'github-actions[bot]')
     
     steps:
       - name: Checkout repository
