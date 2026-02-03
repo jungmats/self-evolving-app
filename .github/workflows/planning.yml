@@ -83,7 +83,7 @@ jobs:
         id: policy
         env:
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           echo "🛡️ Evaluating policy gate for planning stage..."
           echo "🔍 Environment:"
@@ -173,7 +173,7 @@ jobs:
         id: planning
         if: env.POLICY_DECISION == 'allow'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
           CLAUDE_CLIENT_TYPE: cli
           REPO_ROOT: ${{ github.workspace }}
@@ -219,7 +219,7 @@ jobs:
       - name: Handle Policy Block
         if: env.POLICY_DECISION == 'block'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "❌ Planning blocked by policy gate"
@@ -239,7 +239,7 @@ jobs:
       - name: Handle Policy Review Required
         if: env.POLICY_DECISION == 'review_required'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "⚠️ Planning requires human review"
@@ -253,7 +253,7 @@ jobs:
       - name: Handle successful planning
         if: steps.planning.outputs.success == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           # Transition to prioritization stage
@@ -266,7 +266,7 @@ jobs:
       - name: Handle blocked planning
         if: steps.planning.outputs.blocked == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python3 .github/scripts/workflow_transition.py transition \
@@ -284,7 +284,7 @@ jobs:
       - name: Handle review required
         if: steps.planning.outputs.review_required == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python3 .github/scripts/workflow_transition.py progress \
@@ -296,7 +296,7 @@ jobs:
       - name: Handle planning failure
         if: failure()
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "❌ Planning workflow failed - adding detailed error comment to issue"

@@ -83,7 +83,7 @@ jobs:
         id: policy
         env:
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           echo "🛡️ Evaluating policy gate for prioritization stage..."
           echo "🔍 Environment:"
@@ -160,7 +160,7 @@ jobs:
         id: prioritization
         if: env.POLICY_DECISION == 'allow'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
           CLAUDE_CLIENT_TYPE: cli
           REPO_ROOT: ${{ github.workspace }}
@@ -190,7 +190,7 @@ jobs:
       - name: Handle Policy Block
         if: env.POLICY_DECISION == 'block'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "❌ Prioritization blocked by policy gate"
@@ -210,7 +210,7 @@ jobs:
       - name: Handle Policy Review Required
         if: env.POLICY_DECISION == 'review_required'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "⚠️ Prioritization requires human review"
@@ -224,7 +224,7 @@ jobs:
       - name: Apply priority label and transition
         if: steps.prioritization.outputs.success == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           # Add priority label using GitHub API directly
@@ -287,7 +287,7 @@ jobs:
       - name: Handle blocked prioritization
         if: steps.prioritization.outputs.blocked == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python3 .github/scripts/workflow_transition.py transition \
@@ -305,7 +305,7 @@ jobs:
       - name: Handle review required
         if: steps.prioritization.outputs.review_required == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           python3 .github/scripts/workflow_transition.py progress \
@@ -317,7 +317,7 @@ jobs:
       - name: Handle prioritization failure
         if: failure()
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "❌ Prioritization workflow failed - adding detailed error comment to issue"

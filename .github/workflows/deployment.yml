@@ -45,7 +45,7 @@ jobs:
       - name: Create deployment
         id: deployment
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           # Create GitHub deployment
           DEPLOYMENT_ID=$(curl -X POST \
@@ -64,7 +64,7 @@ jobs:
       
       - name: Execute deployment
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           DEPLOYMENT_SECRET: ${{ secrets.DEPLOYMENT_SECRET }}
         run: |
           # Placeholder for actual deployment logic
@@ -77,7 +77,7 @@ jobs:
       - name: Update deployment status - success
         if: success()
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
@@ -92,7 +92,7 @@ jobs:
       - name: Transition issue to done
         if: success() && steps.context.outputs.issue_number != ''
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           # Remove awaiting-deploy-approval label and add done label
           curl -X DELETE \
@@ -118,7 +118,7 @@ jobs:
       - name: Update deployment status - failure
         if: failure()
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \

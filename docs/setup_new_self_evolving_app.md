@@ -29,7 +29,9 @@ You need admin access to the app repo to:
 
 ### 1.3 Tokens / secrets you must provide
 At minimum:
-- **`GH_PAT`**: a fine-scoped Personal Access Token (classic or fine‑grained) used by workflows to manage Issues/PRs/labels.
+- **`PAT_TOKEN`**: a fine-grained Personal Access Token used by workflows to manage Issues/PRs/labels and trigger subsequent workflows.
+
+> **Why PAT_TOKEN instead of GITHUB_TOKEN?** GitHub's built-in `GITHUB_TOKEN` cannot trigger other workflows (security feature to prevent recursive loops). When a workflow adds a label using `GITHUB_TOKEN`, subsequent workflows won't trigger. Using a PAT solves this.
 
 > Security note: do **not** expose secrets to untrusted PRs (e.g., forks). Keep the repo private at first or restrict workflows appropriately.
 
@@ -80,10 +82,50 @@ In **Settings → Actions → General → Workflow permissions**:
 - ✅ **Read and write permissions**
 - ✅ Allow GitHub Actions to create and approve pull requests *(only if you need it; otherwise keep it off)*
 
-### 4.2 Add secrets
-In **Settings → Secrets and variables → Actions → Secrets** add:
+### 4.2 Create and add Personal Access Token (PAT)
 
-- `GH_PAT`
+#### Step 1: Create a fine-grained Personal Access Token
+
+1. Go to **GitHub Settings** (your user settings, not repository settings)
+2. Navigate to **Developer settings → Personal access tokens → Fine-grained tokens**
+3. Click **"Generate new token"**
+4. Configure the token:
+   - **Token name**: `Self-Evolving App Workflow Token` (or similar descriptive name)
+   - **Expiration**: Choose appropriate duration
+     - 90 days recommended for testing
+     - 1 year for production (set calendar reminder to rotate)
+   - **Description**: `Enables workflow transitions and triggers for self-evolving app`
+   - **Repository access**: Select **"Only select repositories"**
+     - Choose your application repository (e.g., `my-self-evolving-app`)
+   - **Permissions** (Repository permissions):
+     - **Issues**: `Read and write` ✅ (required for label management and comments)
+     - **Contents**: `Read-only` ✅ (required for workflow access to repo)
+     - **Metadata**: `Read-only` ✅ (automatically included)
+     - **Pull requests**: `Read and write` (optional, only if workflows create PRs)
+     - **Workflows**: `Read and write` (optional, only if workflows modify workflow files)
+
+5. Click **"Generate token"**
+6. **CRITICAL**: Copy the token immediately - you won't see it again!
+   - Save it temporarily in a secure location (password manager recommended)
+
+#### Step 2: Add token as repository secret
+
+1. Go to your **application repository** on GitHub
+2. Navigate to **Settings → Secrets and variables → Actions → Secrets**
+3. Click **"New repository secret"**
+4. Configure:
+   - **Name**: `PAT_TOKEN` (must be exactly this name)
+   - **Secret**: Paste the token you copied in Step 1
+5. Click **"Add secret"**
+
+#### Step 3: Verify secret is set
+
+In **Settings → Secrets and variables → Actions → Secrets**, you should see:
+- ✅ `PAT_TOKEN` (created just now)
+
+Additional secrets you may need:
+- `CLAUDE_CODE_SESSION_ACCESS_TOKEN` (if using Claude CLI integration)
+- `DEPLOYMENT_SECRET` (if using deployment workflows)
 
 ### 4.3 Add repository variables (recommended)
 In **Variables**, add:
@@ -172,6 +214,22 @@ If anything breaks:
 - confirm secrets exist
 - confirm workflow permissions are “Read and write”
 - confirm the Issue has exactly one `stage:*` label
+
+- **If workflows don't trigger after label changes**: verify `PAT_TOKEN` is set correctly (not `GITHUB_TOKEN`)
+
+### Common issues:
+
+**Workflows not triggering when labels are added:**
+- ✅ Verify `PAT_TOKEN` secret exists and is not expired
+- ✅ Check that workflows use `${{ secrets.PAT_TOKEN }}` not `${{ secrets.GITHUB_TOKEN }}`
+- ✅ Confirm PAT has "Issues: Read and write" permission
+- ✅ Ensure label names match exactly (e.g., `stage:plan` not `stage: plan`)
+
+**"Resource not accessible by integration" errors:**
+- ✅ PAT token may have expired - create a new one
+- ✅ PAT may not have correct repository access - regenerate with proper scope
+
+See `docs/pat-token-setup.md` for detailed troubleshooting.
 
 ---
 

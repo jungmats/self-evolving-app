@@ -23,7 +23,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
       
       - name: Extract issue context
         id: context
@@ -64,7 +64,7 @@ jobs:
         id: policy
         env:
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           echo "🛡️ Evaluating policy gate for implementation stage..."
           
@@ -91,7 +91,7 @@ jobs:
       - name: Handle Policy Block
         if: env.POLICY_DECISION == 'block'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "❌ Implementation blocked by policy gate"
@@ -111,7 +111,7 @@ jobs:
       - name: Handle Policy Review Required
         if: env.POLICY_DECISION == 'review_required'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "⚠️ Implementation requires human review"
@@ -132,7 +132,7 @@ jobs:
       - name: Execute Implementation with Claude CLI
         if: env.POLICY_DECISION == 'allow'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
           CLAUDE_CLIENT_TYPE: cli
           REPO_ROOT: ${{ github.workspace }}
@@ -179,7 +179,7 @@ Generated with Claude CLI for enhanced context awareness and code quality."
       - name: Create pull request
         if: env.POLICY_DECISION == 'allow'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           # Create pull request with enhanced context information
           curl -X POST \
@@ -204,7 +204,7 @@ Generated with Claude CLI for enhanced context awareness and code quality."
       - name: Transition to PR opened stage
         if: env.POLICY_DECISION == 'allow'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           # Transition to PR opened stage
@@ -217,7 +217,7 @@ Generated with Claude CLI for enhanced context awareness and code quality."
       - name: Handle implementation failure
         if: failure()
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "❌ Implementation workflow failed - adding detailed error comment to issue"
