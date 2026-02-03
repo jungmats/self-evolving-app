@@ -118,10 +118,25 @@ jobs:
           CLAUDE_CODE_SESSION_ACCESS_TOKEN: ${{ secrets.CLAUDE_CODE_SESSION_ACCESS_TOKEN }}
         run: |
           echo "🔍 Starting repository-aware triage workflow for issue #${{ github.event.issue.number }}"
+          echo "🔍 Environment check:"
+          echo "  PYTHONPATH: $PYTHONPATH"
+          echo "  REPO_ROOT: $REPO_ROOT"
+          echo "  CLAUDE_CLIENT_TYPE: $CLAUDE_CLIENT_TYPE"
+          echo "  Python version: $(python3 --version)"
           
+          # Test imports before running
+          echo "🧪 Testing Python imports..."
+          python3 -c "import sys; print('Python path:', sys.path)" || echo "Failed to check Python path"
+          python3 -c "from workflow_engine import WorkflowEngine; print('✅ WorkflowEngine imported')" || echo "❌ Failed to import WorkflowEngine"
+          python3 -c "from claude_client_factory import get_claude_client; print('✅ Claude client factory imported')" || echo "❌ Failed to import claude_client_factory"
+          
+          echo "🚀 Executing triage workflow..."
+          set -e  # Exit on error
           python3 .github/scripts/functional_workflow_executor.py triage \
             --issue-id=${{ github.event.issue.number }} \
-            --prompt="$CONSTRUCTED_PROMPT"
+            --prompt="$CONSTRUCTED_PROMPT" 2>&1 | tee triage_output.log
+          
+          echo "✅ Triage workflow execution completed"
       
       - name: Handle Policy Block
         if: env.POLICY_DECISION == 'block'
@@ -221,12 +236,23 @@ jobs:
         run: |
           echo "❌ Triage workflow failed - adding detailed error comment to issue"
           
+          # Capture any available logs
+          ERROR_DETAILS="Triage Workflow Failed - Repository-aware workflow execution failed during triage analysis."
+          
+          if [ -f triage_output.log ]; then
+            echo "📋 Triage output log found:"
+            cat triage_output.log
+            ERROR_DETAILS="$ERROR_DETAILS\n\nLast output:\n\`\`\`\n$(tail -20 triage_output.log)\n\`\`\`"
+          else
+            echo "⚠️ No triage output log found"
+          fi
+          
           # Create detailed error comment
           python3 .github/scripts/workflow_transition.py progress \
             ${{ github.event.issue.number }} \
             "triage" \
             "failed" \
-            "Triage Workflow Failed - Repository-aware workflow execution failed during triage analysis. Check GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "$ERROR_DETAILS\n\nCheck GitHub Actions logs for details. Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
           # Transition to blocked state
           python3 .github/scripts/workflow_transition.py transition \
