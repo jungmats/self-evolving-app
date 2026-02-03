@@ -49,7 +49,7 @@ jobs:
       - name: Transition to implementation stage
         if: steps.check_approval.outputs.approved == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
         run: |
           echo "🚀 Transitioning to implementation stage..."
