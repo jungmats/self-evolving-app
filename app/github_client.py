@@ -270,6 +270,155 @@ class GitHubClient:
             raise GitHubClientError(f"Unexpected error validating permissions: {str(e)}")
 
 
+    def create_pull_request(
+        self,
+        title: str,
+        body: str,
+        head: str,
+        base: str = "main",
+        labels: Optional[List[str]] = None
+    ) -> Any:
+        """
+        Create a Pull Request.
+        
+        Args:
+            title: PR title
+            body: PR body content
+            head: Branch name to merge from
+            base: Branch name to merge into (default: "main")
+            labels: Optional list of label names to apply
+            
+        Returns:
+            Created Pull Request object
+            
+        Raises:
+            GitHubClientError: If PR creation fails
+        """
+        try:
+            # Create the pull request
+            pr = self.repository.create_pull(
+                title=title,
+                body=body,
+                head=head,
+                base=base
+            )
+            
+            # Add labels if provided
+            if labels:
+                pr.add_to_labels(*labels)
+            
+            logger.info(f"Created Pull Request #{pr.number}: {title}")
+            return pr
+            
+        except GithubException as e:
+            error_msg = f"Failed to create Pull Request: {e.data.get('message', str(e))}"
+            logger.error(error_msg)
+            raise GitHubClientError(error_msg)
+        except Exception as e:
+            error_msg = f"Unexpected error creating Pull Request: {str(e)}"
+            logger.error(error_msg)
+            raise GitHubClientError(error_msg)
+    
+    def get_pull_request(self, pr_number: int) -> Any:
+        """
+        Get a Pull Request by number.
+        
+        Args:
+            pr_number: Pull Request number
+            
+        Returns:
+            Pull Request object
+            
+        Raises:
+            GitHubClientError: If PR retrieval fails
+        """
+        try:
+            return self.repository.get_pull(pr_number)
+        except GithubException as e:
+            if e.status == 404:
+                raise GitHubClientError(f"Pull Request #{pr_number} not found")
+            else:
+                raise GitHubClientError(f"Failed to get PR #{pr_number}: {e.data.get('message', str(e))}")
+        except Exception as e:
+            raise GitHubClientError(f"Unexpected error getting PR #{pr_number}: {str(e)}")
+    
+    def add_labels_to_pull_request(self, pr_number: int, labels: List[str]) -> None:
+        """
+        Add labels to an existing Pull Request.
+        
+        Args:
+            pr_number: Pull Request number
+            labels: List of label names to add
+            
+        Raises:
+            GitHubClientError: If label addition fails
+        """
+        try:
+            pr = self.get_pull_request(pr_number)
+            issue = self.repository.get_issue(pr_number)  # PRs are also issues
+            issue.add_to_labels(*labels)
+            logger.info(f"Added labels {labels} to PR #{pr_number}")
+        except GitHubClientError:
+            raise
+        except Exception as e:
+            raise GitHubClientError(f"Failed to add labels to PR #{pr_number}: {str(e)}")
+    
+    def is_pull_request_merged(self, pr_number: int) -> bool:
+        """
+        Check if a Pull Request has been merged.
+        
+        Args:
+            pr_number: Pull Request number
+            
+        Returns:
+            True if PR is merged, False otherwise
+            
+        Raises:
+            GitHubClientError: If PR status check fails
+        """
+        try:
+            pr = self.get_pull_request(pr_number)
+            return pr.merged
+        except GitHubClientError:
+            raise
+        except Exception as e:
+            raise GitHubClientError(f"Failed to check PR merge status #{pr_number}: {str(e)}")
+    
+    def get_linked_issue_from_pr(self, pr_number: int) -> Optional[int]:
+        """
+        Extract linked issue number from PR body.
+        
+        Args:
+            pr_number: Pull Request number
+            
+        Returns:
+            Issue number if found, None otherwise
+            
+        Raises:
+            GitHubClientError: If PR retrieval fails
+        """
+        try:
+            import re
+            
+            pr = self.get_pull_request(pr_number)
+            pr_body = pr.body or ""
+            
+            # Look for "Fixes #123" or "Refs #123" pattern
+            pattern = r'(Fixes|Refs)\s+#(\d+)'
+            match = re.search(pattern, pr_body, re.IGNORECASE)
+            
+            if match:
+                issue_number = int(match.group(2))
+                logger.info(f"Found linked issue #{issue_number} in PR #{pr_number}")
+                return issue_number
+            
+            return None
+        except GitHubClientError:
+            raise
+        except Exception as e:
+            raise GitHubClientError(f"Failed to extract linked issue from PR #{pr_number}: {str(e)}")
+
+
 def get_github_client() -> GitHubClient:
     """
     Factory function to create a configured GitHub client.

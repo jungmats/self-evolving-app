@@ -175,24 +175,24 @@ The implementation follows test-driven development principles, with small, rever
     - Compare output quality between API and CLI approaches
     - **Test: Claude CLI workflows produce enhanced analysis with repository context**
 
-- [ ] 8. Implementation Workflow - Code Generation
-  - [ ] 8.1 Implement code generation workflow
-    - Create implementation workflow that generates code changes
+- [x] 8. Implementation Workflow - Code Generation
+  - [x] 8.1 Implement code generation workflow
+    - Create implementation workflow based on Claude CLI that generates code changes
     - Add unit test generation for all new/modified code
     - Implement test execution and validation
     - _Requirements: 8.2, 8.3, 8.4_
 
-  - [ ] 8.2 Write property test for implementation test requirements
+  - [x] 8.2 Write property test for implementation test requirements
     - **Property 9: Implementation Workflow Test Requirements**
     - **Validates: Requirements 8.3, 8.4**
 
-  - [ ] 8.3 Implement Pull Request creation and management
+  - [x] 8.3 Implement Pull Request creation and management
     - Add PR creation with proper Trace_ID and Issue linking
     - Implement agent labeling for workflow-created PRs
     - Add PR merge detection and Issue state transition
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-  - [ ] 8.4 Add human approval gate for implementation
+  - [x] 8.4 Add human approval gate for implementation
     - Implement approval requirement before implementation workflow
     - Add approval state tracking via GitHub labels only
     - _Requirements: 7.1, 7.3_
