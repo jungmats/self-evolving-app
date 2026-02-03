@@ -161,11 +161,14 @@ jobs:
           fi
           
           # Commit changes
-          git commit -m "Implementation for issue #${{ github.event.issue.number }}
+          git commit -m "$(cat <<'EOF'
+          Implementation for issue #${{ github.event.issue.number }}
 
-Generated with Claude CLI for enhanced context awareness.
+          Generated with Claude CLI for enhanced context awareness.
 
-Trace_ID: ${{ github.event.issue.number }}-${{ github.run_id }}"
+          Trace_ID: ${{ github.event.issue.number }}-${{ github.run_id }}
+          EOF
+          )"
       
       - name: Generate unit tests
         if: env.POLICY_DECISION == 'allow'
