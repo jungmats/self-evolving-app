@@ -86,11 +86,58 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🛡️ Evaluating policy gate for prioritization stage..."
+          echo "🔍 Environment:"
+          echo "  PYTHONPATH: $PYTHONPATH"
+          echo "  Working directory: $(pwd)"
+          echo "  Issue ID: ${{ github.event.issue.number }}"
           
-          policy_json=$(python3 .github/scripts/policy_gate_evaluation.py evaluate-stage \
+          # Run policy gate and capture both stdout and stderr
+          echo "🚀 Running policy gate evaluation..."
+          set +e  # Don't exit immediately on error
+          python3 -u .github/scripts/policy_gate_evaluation.py evaluate-stage \
             --stage=prioritize \
             --issue-id=${{ github.event.issue.number }} \
-            --output-format=json)
+            --output-format=json > policy_stdout.log 2> policy_stderr.log
+          exit_code=$?
+          set -e
+          
+          echo "📋 Policy gate exit code: $exit_code"
+          
+          # Always show what we captured
+          echo "=== STDOUT ==="
+          cat policy_stdout.log || echo "(empty)"
+          
+          echo ""
+          echo "=== STDERR ==="
+          cat policy_stderr.log || echo "(empty)"
+          
+          # Check if it failed
+          if [ $exit_code -ne 0 ]; then
+            echo ""
+            echo "❌ Policy gate evaluation FAILED with exit code $exit_code"
+            echo "Setting policy decision to 'block' due to evaluation error"
+            
+            # Capture error details for the issue comment
+            error_details=$(cat policy_stderr.log 2>/dev/null || echo "No error details available")
+            
+            echo "POLICY_DECISION=block" >> $GITHUB_ENV
+            echo "POLICY_REASON=Policy evaluation script failed: $error_details" >> $GITHUB_ENV
+            echo "CONSTRUCTED_PROMPT=" >> $GITHUB_ENV
+            
+            exit 1
+          fi
+          
+          # Extract JSON from stdout
+          policy_json=$(cat policy_stdout.log)
+          
+          if [ -z "$policy_json" ]; then
+            echo "❌ No output from policy gate"
+            exit 1
+          fi
+          
+          echo ""
+          echo "📋 Policy JSON:"
+          echo "$policy_json"
           
           # Parse JSON response using jq
           decision=$(echo "$policy_json" | jq -r '.decision')
@@ -104,8 +151,10 @@ jobs:
           echo "$constructed_prompt" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
           
-          echo "Policy decision: $decision"
-          echo "Policy reason: $reason"
+          echo ""
+          echo "✅ Policy decision: $decision"
+          echo "✅ Policy reason: $reason"
+          echo "✅ Prompt length: ${#constructed_prompt} characters"
       
       - name: Execute Prioritization with Claude CLI
         id: prioritization
