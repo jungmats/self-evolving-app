@@ -188,6 +188,29 @@ class GitHubClient:
         except Exception as e:
             raise GitHubClientError(f"Failed to add comment to Issue #{issue_number}: {str(e)}")
     
+    def get_issue_comments(self, issue_number: int) -> List[Any]:
+        """
+        Get all comments for an Issue.
+        
+        Args:
+            issue_number: Issue number
+            
+        Returns:
+            List of comment objects
+            
+        Raises:
+            GitHubClientError: If comment retrieval fails
+        """
+        try:
+            issue = self.get_issue(issue_number)
+            comments = list(issue.get_comments())
+            logger.info(f"Retrieved {len(comments)} comments from Issue #{issue_number}")
+            return comments
+        except GitHubClientError:
+            raise
+        except Exception as e:
+            raise GitHubClientError(f"Failed to get comments for Issue #{issue_number}: {str(e)}")
+    
     def ensure_labels_exist(self, labels: List[Dict[str, str]]) -> None:
         """
         Ensure required labels exist in the repository.
