@@ -132,7 +132,10 @@ class PolicyGateEvaluator:
                     elif "Priority Assessment Completed" in comment_body:
                         print("  ✅ Found priority_assessment artifact", file=sys.stderr)
                         workflow_artifacts.append("priority_assessment")
-                    elif "Implementation approved" in comment_body.lower():
+                    # Check for approval in multiple ways
+                    elif ("Implementation approved" in comment_body.lower() or 
+                          "Approval Workflow Completed" in comment_body or
+                          "stage:awaiting-implementation-approval → stage:implement" in comment_body):
                         print("  ✅ Found human_approval artifact", file=sys.stderr)
                         workflow_artifacts.append("human_approval")
                 print(f"Total artifacts found: {workflow_artifacts}", file=sys.stderr)
