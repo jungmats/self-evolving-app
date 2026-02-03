@@ -126,12 +126,14 @@ class SimpleWorkflowTransition:
                 print(f"Warning: Issue #{issue_number} is not in expected stage {from_stage}")
                 print(f"Current labels: {current_labels}")
             
-            # Remove old stage label and add new one
-            new_labels = [label for label in current_labels if not label.startswith("stage:")]
-            new_labels.append(to_stage)
+            # Remove old stage label first (if present)
+            if from_stage in current_labels:
+                self.remove_label_from_issue(issue_number, from_stage)
+                print(f"Removed label: {from_stage}")
             
-            # Update labels
-            self.set_issue_labels(issue_number, new_labels)
+            # Add new stage label (this triggers the 'labeled' event)
+            self.add_label_to_issue(issue_number, [to_stage])
+            print(f"Added label: {to_stage}")
             
             # Add transition comment
             workflow_run_id = os.getenv("GITHUB_RUN_ID", "unknown")
