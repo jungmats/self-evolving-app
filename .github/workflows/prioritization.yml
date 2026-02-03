@@ -236,6 +236,47 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels" \
             -d "{\"labels\": [\"$PRIORITY_LABEL\"]}"
           
+          # Add approval instructions comment
+          python3 -c "
+          import os
+          import requests
+          
+          comment = '''## 🎯 Ready for Implementation
+          
+          The triage, planning, and prioritization stages are complete. This issue is now awaiting implementation approval.
+          
+          ### 📋 Summary
+          - **Priority**: $PRIORITY_LABEL
+          - **Stage**: Awaiting Implementation Approval
+          
+          ### ✅ To Approve Implementation
+          Comment on this issue with one of the following:
+          - \`approve implementation\`
+          - \`/approve\`
+          - \`approved\`
+          
+          Once approved, the implementation workflow will automatically begin.
+          
+          ### ❌ To Reject or Defer
+          - Remove the \`stage:awaiting-implementation-approval\` label
+          - Add the \`stage:blocked\` label
+          - Add a comment explaining why
+          '''
+          
+          url = f\"https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments\"
+          headers = {
+              'Authorization': f\"token {os.environ['GITHUB_TOKEN']}\",
+              'Accept': 'application/vnd.github.v3+json'
+          }
+          data = {'body': comment}
+          
+          response = requests.post(url, headers=headers, json=data)
+          if response.status_code == 201:
+              print('✅ Added approval instructions comment')
+          else:
+              print(f'⚠️ Failed to add comment: {response.status_code}')
+          "
+          
           # Transition to awaiting implementation approval
           python3 .github/scripts/workflow_transition.py transition \
             ${{ github.event.issue.number }} \
