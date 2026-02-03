@@ -12,7 +12,6 @@ import os
 import json
 import logging
 import subprocess
-import tempfile
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from dataclasses import dataclass
@@ -60,20 +59,20 @@ class ClaudeCLIClient:
     """
     
     def __init__(
-        self, 
+        self,
         repository_root: Optional[str] = None,
         claude_command: str = "claude",
         timeout: int = 300,
-        model: str = "sonnet"  # Use alias instead of full model name
+        model: Optional[str] = None  # None = use account default
     ):
         """
         Initialize Claude CLI client.
-        
+
         Args:
             repository_root: Path to repository root (defaults to current directory)
             claude_command: Claude CLI command name
             timeout: Command timeout in seconds
-            model: Claude model to use
+            model: Claude model to use (None = use account default, recommended for subscription users)
         """
         self.repository_root = Path(repository_root or os.getcwd()).resolve()
         self.claude_command = claude_command
@@ -155,81 +154,70 @@ class ClaudeCLIClient:
     ) -> ClaudeCLIResponse:
         """
         Execute Claude CLI command with repository context.
-        
+
         Args:
             prompt: Prompt to send to Claude
             additional_args: Additional CLI arguments
             working_directory: Working directory for command execution
-            
+
         Returns:
             ClaudeCLIResponse with content and metadata
-            
+
         Raises:
             ClaudeCLIError: If command execution fails
         """
         try:
-            # Prepare command arguments - use --print for non-interactive mode
-            cmd_args = [self.claude_command, "--print"]
-            
-            # Add model specification if supported
+            # Build command: claude -p [--model <model>] [additional_args] [prompt]
+            # Note: -p/--print enables non-interactive mode
+            cmd_args = [self.claude_command, "-p"]
+
+            # Only specify model if explicitly set (otherwise use account default)
             if self.model:
                 cmd_args.extend(["--model", self.model])
-            
+
             # Add additional arguments
             if additional_args:
                 cmd_args.extend(additional_args)
-            
+
             # Use repository root as working directory for context
             work_dir = str(self.repository_root)
-            
+
             # Prepare environment with session token
             env = os.environ.copy()
             session_token = self._get_session_token()
             if session_token:
                 env['CLAUDE_CODE_SESSION_ACCESS_TOKEN'] = session_token
-            
-            # DETAILED LOGGING
-            print(f"🔍 CLAUDE CLI DEBUG:")
-            print(f"   Command: {' '.join(cmd_args)}")
-            print(f"   Working Directory: {work_dir}")
-            print(f"   Repository Root: {self.repository_root}")
-            print(f"   Session Token: {'✅ Available' if session_token else '❌ Not Found'}")
-            print(f"   Environment Variables:")
-            for key in ['CLAUDE_CODE_SESSION_ACCESS_TOKEN', 'REPO_ROOT', 'PYTHONPATH']:
-                value = env.get(key, 'NOT SET')
-                if 'TOKEN' in key and value != 'NOT SET':
-                    print(f"     {key}: {value[:10]}...{value[-4:] if len(value) > 4 else '***'}")
-                else:
-                    print(f"     {key}: {value}")
-            print(f"   Prompt length: {len(prompt)} characters")
-            
-            # Create temporary file for prompt if it's long
-            if len(prompt) > 1000:
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-                    f.write(prompt)
-                    temp_file = f.name
-                
-                try:
-                    # Use file input for long prompts
-                    cmd_args.extend(["--file", temp_file])
-                    
-                    # Execute command
-                    result = subprocess.run(
-                        cmd_args,
-                        cwd=work_dir,
-                        env=env,
-                        capture_output=True,
-                        text=True,
-                        timeout=self.timeout
-                    )
-                finally:
-                    # Clean up temporary file
-                    os.unlink(temp_file)
-            else:
-                # Use direct prompt for short prompts
+
+            # Determine if we should use stdin (for long prompts) or positional arg
+            use_stdin = len(prompt) > 1000
+
+            # For short prompts, add as positional argument (MUST be last)
+            if not use_stdin:
                 cmd_args.append(prompt)
-                
-                # Execute command
+
+            # Debug logging
+            print(f"🔍 CLAUDE CLI DEBUG:")
+            print(f"   Command: {' '.join(cmd_args[:5])}{'...' if len(cmd_args) > 5 else ''}")
+            print(f"   Working Directory: {work_dir}")
+            print(f"   Session Token: {'✅ Available' if session_token else '❌ Not Found'}")
+            print(f"   Model: {self.model or '(account default)'}")
+            print(f"   Prompt length: {len(prompt)} characters")
+            print(f"   Input method: {'stdin' if use_stdin else 'positional arg'}")
+
+            # Execute command
+            if use_stdin:
+                # Pass prompt via stdin for long prompts
+                result = subprocess.run(
+                    cmd_args,
+                    cwd=work_dir,
+                    env=env,
+                    input=prompt,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout
+                )
+            else:
+                # Prompt already in cmd_args as positional argument
                 result = subprocess.run(
                     cmd_args,
                     cwd=work_dir,
@@ -238,17 +226,19 @@ class ClaudeCLIClient:
                     text=True,
                     timeout=self.timeout
                 )
-            
-            # DETAILED OUTPUT LOGGING
+
+            # Result logging
             print(f"🔍 CLAUDE CLI RESULT:")
             print(f"   Return Code: {result.returncode}")
-            print(f"   STDOUT: {result.stdout[:200]}{'...' if len(result.stdout) > 200 else ''}")
-            print(f"   STDERR: {result.stderr[:200]}{'...' if len(result.stderr) > 200 else ''}")
-            
+            stdout_preview = result.stdout[:200] if result.stdout else "(empty)"
+            stderr_preview = result.stderr[:200] if result.stderr else "(empty)"
+            print(f"   STDOUT: {stdout_preview}{'...' if len(result.stdout or '') > 200 else ''}")
+            print(f"   STDERR: {stderr_preview}{'...' if len(result.stderr or '') > 200 else ''}")
+
             # Check for errors
             if result.returncode != 0:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
-                
+
                 # Special handling for session token errors
                 if "session token" in error_msg.lower() or "CLAUDE_CODE_SESSION_ACCESS_TOKEN" in error_msg:
                     if not session_token:
@@ -259,22 +249,22 @@ class ClaudeCLIClient:
                         )
                     else:
                         raise ClaudeCLIError(f"Claude CLI session token error: {error_msg}")
-                
+
                 raise ClaudeCLIError(f"Claude CLI command failed (exit code {result.returncode}): {error_msg}")
-            
+
             # Parse response
             content = result.stdout.strip()
             if not content:
                 raise ClaudeCLIError("Claude CLI returned empty response")
-            
+
             return ClaudeCLIResponse(
                 content=content,
-                model=self.model,
+                model=self.model or "(account default)",
                 timestamp=datetime.utcnow(),
-                repository_context=True,  # Now using repository context
-                command_used=" ".join(cmd_args[:3])  # First 3 args for logging
+                repository_context=True,
+                command_used=" ".join(cmd_args[:3])
             )
-            
+
         except subprocess.TimeoutExpired:
             raise ClaudeCLIError(f"Claude CLI command timed out after {self.timeout} seconds")
         except Exception as e:
