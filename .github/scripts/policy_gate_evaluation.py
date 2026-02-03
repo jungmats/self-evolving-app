@@ -121,11 +121,11 @@ class PolicyGateEvaluator:
                 comments = self.github_client.get_issue_comments(issue_number)
                 for comment in comments:
                     comment_body = comment.body or ""
-                    if "Triage Workflow Completed" in comment_body:
+                    if "Triage Analysis Completed" in comment_body:
                         workflow_artifacts.append("triage_report")
-                    elif "Planning Workflow Completed" in comment_body:
+                    elif "Implementation Plan Completed" in comment_body:
                         workflow_artifacts.append("implementation_plan")
-                    elif "Prioritization Workflow Completed" in comment_body:
+                    elif "Priority Assessment Completed" in comment_body:
                         workflow_artifacts.append("priority_assessment")
                     elif "Implementation approved" in comment_body.lower():
                         workflow_artifacts.append("human_approval")
