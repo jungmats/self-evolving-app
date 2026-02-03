@@ -1,0 +1,71 @@
+name: Implementation Approval Workflow
+
+# Trigger on issue comments
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  process-approval:
+    name: Process Implementation Approval
+    runs-on: [self-hosted, solops-local]
+    if: |
+      github.event.issue.state == 'open' &&
+      contains(github.event.issue.labels.*.name, 'stage:awaiting-implementation-approval') &&
+      (github.repository_owner == github.event.comment.user.login || 
+       github.event.comment.user.login == github.repository_owner)
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install Python dependencies
+        run: |
+          echo "📦 Installing Python dependencies..."
+          python3 -m pip install --user -r requirements.txt --force-reinstall --no-cache-dir
+          echo "✅ Dependencies installed"
+      
+      - name: Check for approval command
+        id: check_approval
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          echo "Checking comment for approval command..."
+          echo "Comment: $COMMENT_BODY"
+          
+          # Check if comment contains approval command
+          if echo "$COMMENT_BODY" | grep -iE "(approve implementation|/approve|approved)" > /dev/null; then
+            echo "✅ Approval command found"
+            echo "approved=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ No approval command found"
+            echo "approved=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Transition to implementation stage
+        if: steps.check_approval.outputs.approved == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+        run: |
+          echo "🚀 Transitioning to implementation stage..."
+          
+          # Add approval comment
+          python3 .github/scripts/workflow_transition.py progress \
+            ${{ github.event.issue.number }} \
+            "approval" \
+            "completed" \
+            "Implementation approved by @${{ github.event.comment.user.login }}"
+          
+          # Transition label
+          python3 .github/scripts/workflow_transition.py transition \
+            ${{ github.event.issue.number }} \
+            "stage:awaiting-implementation-approval" \
+            "stage:implement" \
+            "approval"
+          
+          echo "✅ Transitioned to implementation stage"
