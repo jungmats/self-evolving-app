@@ -250,14 +250,6 @@ class PolicyGateComponent:
         """Evaluate stage-specific constraints."""
         stage_config = self._stage_constraints[context.current_stage]
         
-        # Check priority requirements for prioritization stage
-        if context.current_stage == "prioritize" and not context.priority:
-            return {
-                "decision": "block",
-                "reason": "Priority information required for prioritization stage",
-                "constraints": {"required_fields": ["priority"]}
-            }
-        
         # Check severity requirements for bug triage
         if (context.current_stage == "triage" and 
             context.request_type == "bug" and 
