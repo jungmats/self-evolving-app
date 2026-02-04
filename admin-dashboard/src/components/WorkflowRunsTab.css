@@ -112,3 +112,47 @@
     background-color: #f5f5f5;
   }
 }
+
+.workflow-icon {
+  font-size: 1.2rem;
+}
+
+.issue-link {
+  color: #646cff;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.status-skipped {
+  background-color: #666;
+  color: #ccc;
+}
+
+.grouped-workflows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  cursor: pointer;
+}
+
+@media (prefers-color-scheme: light) {
+  .issue-link {
+    color: #0366d6;
+  }
+
+  .status-skipped {
+    background: #f8f9fa;
+    color: #6c757d;
+  }
+}

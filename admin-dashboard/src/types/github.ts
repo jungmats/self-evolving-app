@@ -59,12 +59,37 @@ export interface WorkflowRun {
   html_url: string
   run_number: number
   event: string
+  issue_number?: number  // Extracted from workflow context
 }
 
 export interface WorkflowStatus {
   id: number
   status: string
   conclusion: string | null
+}
+
+// Comment on an issue
+export interface Comment {
+  id: number
+  body: string
+  user: User
+  created_at: string
+  updated_at: string
+}
+
+// Workflow outcome parsed from comments
+export interface WorkflowOutcome {
+  stage: string
+  content: string
+  timestamp: string
+}
+
+// Grouped workflow runs by issue
+export interface GroupedWorkflowRuns {
+  issueNumber: number
+  issueTitle: string
+  issueUrl: string
+  runs: WorkflowRun[]
 }
 
 // Filter types

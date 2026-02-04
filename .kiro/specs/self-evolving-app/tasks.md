@@ -270,6 +270,70 @@ The implementation follows test-driven development principles, with small, rever
     - _Requirements: 10.5, 10.10_
     - **Test: Admin dashboard displays all Issues/PRs in tabs with functional approval controls, completely independent from Web Server**
 
+  - [ ] 9.11 Enhanced UX Improvements for Admin Dashboard
+    - [x] 9.11.1 Merge Issues tabs into unified view
+      - Remove separate "Issues by Stage" and "Issues by Request Type" tabs
+      - Create single "Issues" tab with combined functionality
+      - Implement flat list view without subsections
+      - Add sortable columns (number, title, stage, priority, created, updated)
+      - Default sort by most recently updated
+      - _Requirements: 10.6, 10.8_
+
+    - [x] 9.11.2 Enhanced search and filtering
+      - Implement comprehensive search (title, number, trace ID, description)
+      - Add filter dropdowns: stage, request type, priority, source
+      - Add date range filtering (from/to)
+      - Implement combined filter logic (AND)
+      - Add clear filters button
+      - _Requirements: 10.9_
+
+    - [x] 9.11.3 Enhanced issue card display
+      - Show full description inline (not just title)
+      - Display trace ID prominently
+      - Show stage as colored tag/badge
+      - Show priority as colored tag/badge (when assigned)
+      - Display latest workflow outcome (triage result, plan, etc.)
+      - Implement collapsible workflow outcomes (collapsed by default)
+      - Parse workflow outcomes from issue comments
+      - Show time in current stage
+      - Display created/updated timestamps
+      - _Requirements: 10.8, 10.9_
+
+    - [x] 9.11.4 Workflow runs noise reduction
+      - Filter out skipped workflows by default
+      - Show only: success, failure, in_progress, queued
+      - Add optional toggle to show skipped runs
+      - _Requirements: 10.6_
+
+    - [x] 9.11.5 Group workflow runs by issue
+      - Extract issue number from workflow run context
+      - Group workflows by associated issue
+      - Display hierarchical structure (issue → workflows)
+      - Implement collapsible groups (collapsed by default)
+      - Show issue title and link alongside workflows
+      - Add workflow type icons/badges
+      - Highlight failures prominently
+      - Show progress indicator for running workflows
+      - _Requirements: 10.6, 10.8_
+
+    - [x] 9.11.6 Create reusable components
+      - Create `IssuesTab.tsx` component
+      - Create `IssueCard.tsx` reusable component
+      - Create `CollapsibleSection.tsx` component
+      - Update `WorkflowRunsTab.tsx` with grouping logic
+      - Create `workflowUtils.ts` for grouping and parsing
+      - _Requirements: 10.1_
+
+    - [x] 9.11.7 Update API client and types
+      - Add method to fetch issue comments
+      - Add method to parse workflow run context for issue association
+      - Update `getRecentWorkflowRuns` to filter skipped by default
+      - Add `Comment`, `GroupedWorkflowRuns`, `WorkflowOutcome` types
+      - Implement `extractWorkflowOutcome()` utility
+      - Implement `groupWorkflowsByIssue()` utility
+      - _Requirements: 10.4, 10.5_
+      - **Test: Admin dashboard provides enhanced UX with unified issues view, reduced noise, and better information density**
+
 - [ ] 10. Code-Only Deployment Pipeline
   - [ ] 10.1 Implement basic deployment component
     - Create versioned release directory management

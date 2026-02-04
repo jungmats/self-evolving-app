@@ -2,25 +2,19 @@ import { useState } from 'react'
 import './App.css'
 import { GitHubProvider } from './context/GitHubContext'
 import { Tabs, Tab } from './components/Tabs'
-import { IssuesByStageTab } from './components/IssuesByStageTab'
-import { IssuesByRequestTypeTab } from './components/IssuesByRequestTypeTab'
+import { IssuesTab } from './components/IssuesTab'
 import { PullRequestsTab } from './components/PullRequestsTab'
 import { ApprovalsRequiredTab } from './components/ApprovalsRequiredTab'
 import { WorkflowRunsTab } from './components/WorkflowRunsTab'
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState('issues-by-stage')
+  const [activeTab, setActiveTab] = useState('issues')
 
   const tabs: Tab[] = [
     {
-      id: 'issues-by-stage',
-      label: 'Issues by Stage',
-      content: <IssuesByStageTab />,
-    },
-    {
-      id: 'issues-by-type',
-      label: 'Issues by Type',
-      content: <IssuesByRequestTypeTab />,
+      id: 'issues',
+      label: 'Issues',
+      content: <IssuesTab />,
     },
     {
       id: 'pull-requests',

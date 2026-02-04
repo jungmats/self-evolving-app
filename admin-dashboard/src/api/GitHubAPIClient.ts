@@ -51,8 +51,20 @@ export class GitHubAPIClient {
   // Extract Trace_ID from issue/PR body
   private extractTraceId(body: string | null): string | undefined {
     if (!body) return undefined
-    const match = body.match(/Trace[_-]ID:\s*([a-zA-Z0-9-]+)/)
+    // Match **Trace_ID**: `trace-xxx` or Trace_ID: trace-xxx
+    const match = body.match(/\*\*Trace[_-]ID\*\*:\s*`?([a-zA-Z0-9-]+)`?/i)
     return match ? match[1] : undefined
+  }
+
+  // Extract issue number from workflow run (from trigger context)
+  private extractIssueNumber(run: WorkflowRun): number | undefined {
+    // Try to extract from workflow name or event
+    // Workflow runs triggered by issues often have the issue number in the name
+    const nameMatch = run.name.match(/#(\d+)/)
+    if (nameMatch) {
+      return parseInt(nameMatch[1])
+    }
+    return undefined
   }
 
   // Issue queries
@@ -179,12 +191,26 @@ export class GitHubAPIClient {
   }
 
   // Workflow queries
-  async getRecentWorkflowRuns(limit: number = 50, filters?: WorkflowFilters): Promise<WorkflowRun[]> {
-    const runs = await this.request<{ workflow_runs: WorkflowRun[] }>(
+  async getRecentWorkflowRuns(
+    limit: number = 50, 
+    filters?: WorkflowFilters,
+    includeSkipped: boolean = false
+  ): Promise<WorkflowRun[]> {
+    const runs = await this.request<{ workflow_runs: any[] }>(
       `/repos/${this.owner}/${this.repo}/actions/runs?per_page=${limit}`
     )
     
-    let filteredRuns = runs.workflow_runs
+    let filteredRuns = runs.workflow_runs.map(run => ({
+      ...run,
+      issue_number: this.extractIssueNumber(run),
+    }))
+
+    // Filter out skipped runs by default
+    if (!includeSkipped) {
+      filteredRuns = filteredRuns.filter(run => 
+        run.conclusion !== 'skipped' && run.status !== 'skipped'
+      )
+    }
 
     // Apply filters
     if (filters?.workflowType) {
@@ -282,6 +308,12 @@ export class GitHubAPIClient {
         },
         body: JSON.stringify({ body }),
       }
+    )
+  }
+
+  async getIssueComments(issueNumber: number): Promise<any[]> {
+    return this.request<any[]>(
+      `/repos/${this.owner}/${this.repo}/issues/${issueNumber}/comments?per_page=100`
     )
   }
 
