@@ -28,14 +28,6 @@ export function IssueCard({ issue }: IssueCardProps) {
     return match ? match[1].toLowerCase() : undefined
   }
 
-  // Debug: log labels to see what's available
-  useEffect(() => {
-    console.log(`Issue #${issue.number} labels:`, issue.labels.map(l => l.name))
-    console.log(`Severity extracted: "${severity}"`)
-    console.log(`Trace ID: "${issue.trace_id}"`)
-    console.log(`Issue body preview:`, issue.body?.substring(0, 200))
-  }, [issue.number])
-
   useEffect(() => {
     loadWorkflowOutcome()
   }, [issue.number])
