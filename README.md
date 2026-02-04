@@ -74,3 +74,67 @@ This foundation supports the implementation of:
 - Workflow orchestration
 - Policy & gate components
 - Deployment pipeline
+
+
+## Admin Operations Dashboard
+
+The Admin Operations Dashboard is a **pure frontend application** for monitoring and managing system operations.
+
+### Key Features
+- **Independent Architecture**: Completely separate from the Web Server component
+- **Direct GitHub API Integration**: No backend dependencies
+- **Tab-Based Interface**: Organized views for Issues, PRs, Approvals, and Workflows
+- **Real-Time Monitoring**: Live data from GitHub API
+- **Approval Controls**: Approve or deny implementation and deployment requests
+
+### Quick Start
+
+1. Navigate to admin dashboard:
+   ```bash
+   cd admin-dashboard
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Configure environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your GitHub credentials:
+   # - VITE_GITHUB_TOKEN: Personal Access Token with repo and workflow scopes
+   # - VITE_GITHUB_OWNER: GitHub username or organization
+   # - VITE_GITHUB_REPO: Repository name
+   ```
+
+4. Run development server:
+   ```bash
+   npm run dev
+   ```
+
+5. Access at: `http://localhost:3001`
+
+### Deployment
+
+The admin dashboard can be deployed in multiple ways:
+
+1. **Co-located with Web Server** (recommended for development)
+2. **Netlify** (static hosting)
+3. **Vercel** (static hosting)
+4. **AWS S3 + CloudFront** (static hosting)
+
+See [Admin Dashboard Deployment Guide](admin-dashboard/DEPLOYMENT.md) for detailed instructions.
+
+### Testing
+
+Run admin dashboard tests:
+```bash
+cd admin-dashboard
+npm test
+```
+
+### Documentation
+
+- [Admin Dashboard README](admin-dashboard/README.md)
+- [Deployment Guide](admin-dashboard/DEPLOYMENT.md)

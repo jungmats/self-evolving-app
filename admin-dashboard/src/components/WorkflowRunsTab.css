@@ -1,0 +1,114 @@
+.workflow-runs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.workflow-run-card {
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 1rem;
+  background-color: #242424;
+  transition: background-color 0.2s;
+}
+
+.workflow-run-card:hover {
+  background-color: #2a2a2a;
+}
+
+.workflow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.workflow-name-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.workflow-name {
+  font-weight: 600;
+  color: #646cff;
+  text-decoration: none;
+  font-size: 1rem;
+}
+
+.workflow-name:hover {
+  text-decoration: underline;
+}
+
+.run-number {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.workflow-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-success {
+  background-color: #44ff44;
+  color: black;
+}
+
+.status-failure {
+  background-color: #ff4444;
+  color: white;
+}
+
+.status-cancelled {
+  background-color: #888;
+  color: white;
+}
+
+.status-in-progress {
+  background-color: #ffaa44;
+  color: black;
+}
+
+.status-queued {
+  background-color: #4444ff;
+  color: white;
+}
+
+.status-unknown {
+  background-color: #666;
+  color: white;
+}
+
+.workflow-meta {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  color: #888;
+  flex-wrap: wrap;
+}
+
+.apply-filters-button {
+  padding: 0.5rem 1rem;
+  background-color: #646cff;
+  color: white;
+  border: none;
+}
+
+.apply-filters-button:hover {
+  background-color: #5555dd;
+}
+
+@media (prefers-color-scheme: light) {
+  .workflow-run-card {
+    background-color: #fff;
+    border-color: #ddd;
+  }
+
+  .workflow-run-card:hover {
+    background-color: #f5f5f5;
+  }
+}

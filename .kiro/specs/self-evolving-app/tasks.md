@@ -198,23 +198,77 @@ The implementation follows test-driven development principles, with small, rever
     - _Requirements: 7.1, 7.3_
     - **Test: Implementation workflow creates PRs when approved, ready for merge**
 
-- [ ] 9. Admin Operations Dashboard
-  - [ ] 9.1 Implement Issue display and grouping
-    - Create components for Issue listing by stage and type
-    - Implement GitHub API integration for real-time data
-    - Add Pull Request display for agent-created PRs
+- [x] 9. Admin Operations Dashboard
+  - [x] 9.1 Set up separate Admin Dashboard project structure
+    - Create dedicated `admin-dashboard/` folder with independent package.json
+    - Initialize React + TypeScript project with Vite or Webpack
+    - Set up environment configuration for GitHub API token and repository
+    - Ensure no shared code or dependencies with Web Server component
     - _Requirements: 10.1, 10.2, 10.5_
 
-  - [ ] 9.2 Implement approval controls
-    - Create approval buttons for implementation
-    - Add approval workflow via GitHub label mutations only
-    - Implement approval state tracking and display
-    - _Requirements: 7.2, 7.3_
+  - [x] 9.2 Implement GitHub API client (client-side)
+    - Create GitHubAPIClient class for direct GitHub API calls
+    - Implement Issue queries (by stage, by request type, awaiting approval)
+    - Implement Pull Request queries (by label)
+    - Implement Workflow Run queries
+    - Add error handling and rate limiting awareness
+    - _Requirements: 10.4, 10.5_
 
-  - [ ] 9.3 Write property test for state machine invariants
+  - [x] 9.3 Create tab-based UI structure
+    - Implement tab navigation component
+    - Create "Issues by Stage" tab with stage grouping
+    - Create "Issues by Request Type" tab with type grouping
+    - Create "Pull Requests" tab for agent-created PRs
+    - Create "Approvals Required" tab for implementation and deployment approvals
+    - Create "Workflow Runs" tab for recent workflow executions
+    - _Requirements: 10.6, 10.8_
+
+  - [x] 9.4 Implement Issues by Stage tab
+    - Display Issues grouped by stage labels (triage, plan, prioritize, blocked, etc.)
+    - Show Issue number, title, request type, Trace_ID, time in stage
+    - Add filtering and searching capabilities
+    - Implement navigation to GitHub Issue
+    - _Requirements: 10.6, 10.8, 10.9_
+
+  - [x] 9.5 Implement Issues by Request Type tab
+    - Display Issues grouped by request type (bug, feature, investigate)
+    - Show Issue number, title, current stage, priority, Trace_ID
+    - Add filters by priority, source, and date range
+    - Implement navigation to GitHub Issue
+    - _Requirements: 10.6, 10.8, 10.9_
+
+  - [x] 9.6 Implement Pull Requests tab
+    - Display Pull Requests with `agent:claude` label
+    - Show PR number, title, linked Issue, status, CI checks, Trace_ID
+    - Add filters by state and date range
+    - Implement navigation to GitHub PR and linked Issue
+    - _Requirements: 10.6, 10.8_
+
+  - [x] 9.7 Implement Approvals Required tab
+    - Display Issues in `stage:awaiting-implementation-approval`
+    - Display Issues in `stage:awaiting-deploy-approval`
+    - Show Issue/PR number, title, request type, priority, plan summary, Trace_ID
+    - Create approval and deny buttons
+    - Implement approval workflow via GitHub label mutations
+    - _Requirements: 10.6, 10.7, 7.2, 7.3_
+
+  - [x] 9.8 Implement Workflow Runs tab
+    - Display recent workflow executions
+    - Show workflow name, status, conclusion, duration, Trace_ID
+    - Add filters by workflow type, status, and date range
+    - Implement navigation to workflow logs and linked Issues
+    - _Requirements: 10.6_
+
+  - [x] 9.9 Write property test for state machine invariants
     - **Property 5: State Machine Integrity** (admin view)
     - **Validates: Requirements 3.4, 10.1**
-    - **Test: Admin dashboard displays all Issues/PRs grouped correctly with functional approval controls**
+
+  - [x] 9.10 Configure deployment for Admin Dashboard
+    - Set up build process for production static files
+    - Configure environment variables for deployment
+    - Document deployment options (co-located vs independent)
+    - _Requirements: 10.5, 10.10_
+    - **Test: Admin dashboard displays all Issues/PRs in tabs with functional approval controls, completely independent from Web Server**
 
 - [ ] 10. Code-Only Deployment Pipeline
   - [ ] 10.1 Implement basic deployment component

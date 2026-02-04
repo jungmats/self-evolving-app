@@ -177,11 +177,21 @@ All design and implementation SHALL adhere to these principles:
 
 #### Acceptance Criteria
 
-1. THE Admin_Ops_Page SHALL display Issues grouped by stage and request type
-2. THE Admin_Ops_Page SHALL display Pull Requests labeled `agent:claude`
-3. THE Admin_Ops_Page SHALL display recent Workflow_Runs with their status
-4. THE Admin_Ops_Page SHALL provide approval controls for implementation and deployment
-5. THE Admin_Ops_Page SHALL retrieve all data via GitHub_API queries
+1. THE Admin_Ops_Page SHALL be implemented as a separate component with its own dedicated folder structure, independent from the Web_Server component
+2. THE Admin_Ops_Page SHALL NOT share code, resources, or dependencies with the Web_Server component
+3. THE Admin_Ops_Page SHALL be a pure frontend application with no backend server or database dependencies
+4. THE Admin_Ops_Page SHALL retrieve all data directly from GitHub_API using client-side requests
+5. THE Admin_Ops_Page SHALL use environment variables for configuration when deployed on the same server as Web_Server
+6. THE Admin_Ops_Page SHALL organize information into separate tabs to reduce cognitive load:
+   - Tab for Issues by stage (triage, plan, prioritize, blocked, etc.)
+   - Tab for Issues by request type (bug, feature, investigate)
+   - Tab for Pull Requests labeled `agent:claude`
+   - Tab for Items requiring approval (implementation and deployment)
+   - Tab for recent Workflow_Runs with their status
+7. THE Admin_Ops_Page SHALL provide approval controls for implementation and deployment within the approval tab
+8. THE Admin_Ops_Page SHALL display Issues with their current stage, request type, and Trace_ID
+9. THE Admin_Ops_Page SHALL enable filtering and searching within each tab
+10. THE Admin_Ops_Page SHALL be deployable independently from the Web_Server component
 
 ### Requirement 11: Deployment Pipeline
 
