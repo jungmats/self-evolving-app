@@ -1,0 +1,82 @@
+.approval-card {
+  border-left: 4px solid #646cff;
+}
+
+.plan-summary {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: #1a1a1a;
+  border-radius: 4px;
+  border: 1px solid #333;
+}
+
+.plan-summary strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #646cff;
+}
+
+.plan-summary p {
+  margin: 0;
+  color: #ccc;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #333;
+}
+
+.approve-button,
+.deny-button {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.approve-button {
+  background-color: #44ff44;
+  color: black;
+  border: none;
+}
+
+.approve-button:hover:not(:disabled) {
+  background-color: #33dd33;
+}
+
+.deny-button {
+  background-color: #ff4444;
+  color: white;
+  border: none;
+}
+
+.deny-button:hover:not(:disabled) {
+  background-color: #dd3333;
+}
+
+.approve-button:disabled,
+.deny-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: light) {
+  .plan-summary {
+    background-color: #f5f5f5;
+    border-color: #ddd;
+  }
+
+  .plan-summary p {
+    color: #333;
+  }
+
+  .approval-actions {
+    border-top-color: #ddd;
+  }
+}

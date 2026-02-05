@@ -1,0 +1,299 @@
+.issue-card-enhanced {
+  background-color: #242424;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  transition: background-color 0.2s;
+}
+
+.issue-card-enhanced:hover {
+  background-color: #2a2a2a;
+}
+
+.issue-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.issue-number {
+  font-weight: 600;
+  color: #646cff;
+  text-decoration: none;
+  font-size: 1rem;
+}
+
+.issue-number:hover {
+  text-decoration: underline;
+}
+
+.issue-tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.tag-stage {
+  background-color: #4444ff;
+  color: white;
+}
+
+.tag-stage.tag-triage {
+  background-color: #ffaa44;
+  color: black;
+}
+
+.tag-stage.tag-plan {
+  background-color: #aa44ff;
+  color: white;
+}
+
+.tag-stage.tag-prioritize {
+  background-color: #44ff44;
+  color: black;
+}
+
+.tag-stage.tag-implement {
+  background-color: #4444ff;
+  color: white;
+}
+
+.tag-stage.tag-blocked {
+  background-color: #ff4444;
+  color: white;
+}
+
+.tag-stage.tag-done {
+  background-color: #44ff44;
+  color: black;
+}
+
+.tag-priority {
+  background-color: #555;
+  color: #fff;
+}
+
+.tag-priority.tag-p0 {
+  background-color: #ff4444;
+  color: white;
+}
+
+.tag-priority.tag-p1 {
+  background-color: #ffaa44;
+  color: black;
+}
+
+.tag-priority.tag-p2 {
+  background-color: #44ff44;
+  color: black;
+}
+
+.tag-severity {
+  background-color: #555;
+  color: #fff;
+}
+
+.tag-severity.tag-critical {
+  background-color: #ff4444;
+  color: white;
+}
+
+.tag-severity.tag-high {
+  background-color: #ff8844;
+  color: white;
+}
+
+.tag-severity.tag-medium {
+  background-color: #ffaa44;
+  color: black;
+}
+
+.tag-severity.tag-low {
+  background-color: #44aaff;
+  color: white;
+}
+
+.tag-type {
+  background-color: #333;
+  color: #ccc;
+}
+
+.tag-type.tag-bug {
+  background-color: #ff4444;
+  color: white;
+}
+
+.tag-type.tag-feature {
+  background-color: #44ff44;
+  color: black;
+}
+
+.tag-type.tag-investigate {
+  background-color: #ffaa44;
+  color: black;
+}
+
+.issue-title {
+  margin: 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.4;
+}
+
+.issue-description {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  background-color: #1a1a1a;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #ccc;
+  white-space: pre-wrap;
+}
+
+.issue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #333;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.meta-item {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.meta-item strong {
+  font-weight: 600;
+  color: #aaa;
+}
+
+.trace-id-badge {
+  padding: 0.2rem 0.6rem;
+  background-color: #333;
+  border: 1px solid #555;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #4af;
+}
+
+.loading-outcome {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: #1a1a1a;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #888;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: light) {
+  .issue-card-enhanced {
+    background-color: #fff;
+    border-color: #ddd;
+  }
+
+  .issue-card-enhanced:hover {
+    background-color: #f5f5f5;
+  }
+
+  .issue-title {
+    color: #24292e;
+  }
+
+  .issue-description {
+    background-color: #f6f8fa;
+    color: #586069;
+  }
+
+  .issue-meta {
+    border-top-color: #e1e4e8;
+    color: #586069;
+  }
+
+  .meta-item strong {
+    color: #24292e;
+  }
+
+  .trace-id-badge {
+    background-color: #f0f0f0;
+    border-color: #ddd;
+    color: #0366d6;
+  }
+
+  .loading-outcome {
+    background-color: #f6f8fa;
+    color: #586069;
+  }
+
+  .tag-stage {
+    background-color: #e1f5fe;
+    color: #01579b;
+  }
+
+  .tag-priority {
+    background-color: #e0e0e0;
+    color: #424242;
+  }
+
+  .tag-priority.tag-p0 {
+    background-color: #ffebee;
+    color: #c62828;
+  }
+
+  .tag-priority.tag-p1 {
+    background-color: #fff3e0;
+    color: #ef6c00;
+  }
+
+  .tag-priority.tag-p2 {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  .tag-severity {
+    background-color: #e0e0e0;
+    color: #424242;
+  }
+
+  .tag-severity.tag-critical {
+    background-color: #ffebee;
+    color: #c62828;
+  }
+
+  .tag-severity.tag-high {
+    background-color: #ffe0b2;
+    color: #e65100;
+  }
+
+  .tag-severity.tag-medium {
+    background-color: #fff3e0;
+    color: #ef6c00;
+  }
+
+  .tag-severity.tag-low {
+    background-color: #e3f2fd;
+    color: #1565c0;
+  }
+
+  .tag-type {
+    background-color: #f5f5f5;
+    color: #424242;
+  }
+}

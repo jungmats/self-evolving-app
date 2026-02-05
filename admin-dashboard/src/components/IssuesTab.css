@@ -1,0 +1,164 @@
+.search-section {
+  margin-bottom: 1rem;
+}
+
+.search-input-full {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  box-sizing: border-box;
+  background-color: #1a1a1a;
+  color: #fff;
+}
+
+.search-input-full:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.filters-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background-color: #1a1a1a;
+  border-radius: 4px;
+}
+
+.filter-select,
+.date-input {
+  padding: 0.5rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background-color: #242424;
+  color: #fff;
+}
+
+.filter-select:focus,
+.date-input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.clear-filters-button {
+  padding: 0.5rem 1rem;
+  background-color: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clear-filters-button:hover {
+  background-color: #ff6666;
+}
+
+.sort-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background-color: #1a1a1a;
+  border-radius: 4px;
+  flex-wrap: wrap;
+}
+
+.sort-label {
+  font-weight: 600;
+  color: #aaa;
+  margin-right: 0.5rem;
+}
+
+.sort-button {
+  padding: 0.4rem 0.8rem;
+  background-color: #242424;
+  border: 1px solid #444;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #fff;
+}
+
+.sort-button:hover {
+  background-color: #2a2a2a;
+}
+
+.sort-button.active {
+  background-color: #646cff;
+  color: white;
+  border-color: #646cff;
+}
+
+.issues-list {
+  margin-top: 1rem;
+}
+
+.no-issues {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-size: 1rem;
+  font-style: italic;
+}
+
+@media (prefers-color-scheme: light) {
+  .search-input-full {
+    background-color: #fff;
+    color: #000;
+    border-color: #ddd;
+  }
+
+  .filters-section {
+    background-color: #f8f9fa;
+  }
+
+  .filter-select,
+  .date-input {
+    background-color: white;
+    color: #000;
+    border-color: #ddd;
+  }
+
+  .clear-filters-button {
+    background-color: #dc3545;
+  }
+
+  .clear-filters-button:hover {
+    background-color: #c82333;
+  }
+
+  .sort-section {
+    background-color: #f8f9fa;
+  }
+
+  .sort-label {
+    color: #495057;
+  }
+
+  .sort-button {
+    background-color: white;
+    color: #000;
+    border-color: #ddd;
+  }
+
+  .sort-button:hover {
+    background-color: #e9ecef;
+  }
+
+  .sort-button.active {
+    background-color: #007bff;
+    border-color: #007bff;
+  }
+
+  .no-issues {
+    color: #6c757d;
+  }
+}

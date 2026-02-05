@@ -99,7 +99,7 @@ In **Settings → Actions → General → Workflow permissions**:
      - Choose your application repository (e.g., `my-self-evolving-app`)
    - **Permissions** (Repository permissions):
      - **Issues**: `Read and write` ✅ (required for label management and comments)
-     - **Contents**: `Read-only` ✅ (required for workflow access to repo)
+     - **Contents**: `Read and write` ✅ (required for workflow access to repo and pushes)
      - **Metadata**: `Read-only` ✅ (automatically included)
      - **Pull requests**: `Read and write` (optional, only if workflows create PRs)
      - **Workflows**: `Read and write` (optional, only if workflows modify workflow files)

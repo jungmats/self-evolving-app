@@ -118,7 +118,7 @@ sequenceDiagram
 
 ### Web Server Component
 
-**Purpose**: Provides user interface for request submission and administrative operations.
+**Purpose**: Provides user interface for request submission.
 
 **Technology Stack**:
 - Backend: Python FastAPI with SQLAlchemy ORM
@@ -134,13 +134,6 @@ class RequestSubmissionAPI:
     def submit_bug_report(self, title: str, description: str, severity: str) -> RequestResponse
     def submit_feature_request(self, title: str, description: str, priority: str) -> RequestResponse
     def get_request_status(self, trace_id: str) -> StatusResponse
-
-# Admin Operations API  
-class AdminOperationsAPI:
-    def list_pending_approvals(self) -> List[ApprovalItem]
-    def approve_implementation(self, issue_id: int) -> ApprovalResponse
-    def approve_deployment(self, issue_id: int) -> ApprovalResponse
-    def get_workflow_status(self, issue_id: int) -> WorkflowStatus
 ```
 
 **Database Schema**:
@@ -168,6 +161,170 @@ class MonitoringSignature(Base):
     github_issue_id: int = Column(Integer, nullable=True)
     cooldown_until: datetime = Column(DateTime, nullable=False)
     error_details: str = Column(Text, nullable=False)
+```
+
+### Admin Operations Dashboard Component
+
+**Purpose**: Provides administrative visibility and approval controls for system operations.
+
+**Architecture**: Pure frontend application, completely independent from Web Server Component.
+
+**Technology Stack**:
+- Frontend: React with TypeScript
+- State Management: React Context API or Redux
+- HTTP Client: Axios or Fetch API for direct GitHub API calls
+- Build Tool: Webpack or Vite
+- Deployment: Static file hosting (can be co-located with Web Server on same server)
+
+**Deployment Model**:
+- **Separate Folder Structure**: Lives in its own directory (e.g., `admin-dashboard/`) with no shared code or dependencies with Web Server
+- **No Backend Dependencies**: No FastAPI server, no database connections
+- **Direct GitHub API Integration**: All data retrieved client-side from GitHub REST API
+- **Environment Configuration**: Uses environment variables for GitHub API token and repository configuration
+- **Independent Deployment**: Can be deployed separately or co-located with Web Server as static files
+
+**Key Interfaces**:
+
+```typescript
+// GitHub API Client (client-side)
+class GitHubAPIClient {
+  constructor(token: string, owner: string, repo: string)
+  
+  // Issue queries
+  async getIssuesByStage(stage: string): Promise<Issue[]>
+  async getIssuesByRequestType(requestType: string): Promise<Issue[]>
+  async getIssuesAwaitingApproval(): Promise<Issue[]>
+  
+  // Pull Request queries
+  async getPullRequestsByLabel(label: string): Promise<PullRequest[]>
+  
+  // Workflow queries
+  async getRecentWorkflowRuns(limit: number): Promise<WorkflowRun[]>
+  async getWorkflowRunStatus(runId: number): Promise<WorkflowStatus>
+  
+  // Approval actions
+  async approveImplementation(issueId: number): Promise<void>
+  async approveDeployment(issueId: number): Promise<void>
+  
+  // Label management
+  async addLabel(issueId: number, label: string): Promise<void>
+  async removeLabel(issueId: number, label: string): Promise<void>
+}
+
+// Data models
+interface Issue {
+  id: number
+  number: number
+  title: string
+  body: string
+  state: string
+  labels: Label[]
+  created_at: string
+  updated_at: string
+  trace_id?: string  // Extracted from body
+}
+
+interface PullRequest {
+  id: number
+  number: number
+  title: string
+  body: string
+  state: string
+  labels: Label[]
+  head: { sha: string }
+  base: { sha: string }
+  created_at: string
+  trace_id?: string  // Extracted from body
+}
+
+interface WorkflowRun {
+  id: number
+  name: string
+  status: string
+  conclusion: string
+  created_at: string
+  updated_at: string
+  html_url: string
+}
+```
+
+**UI Structure - Tab-Based Organization**:
+
+The dashboard uses a tabbed interface to reduce cognitive load:
+
+1. **Issues by Stage Tab**
+   - Displays Issues grouped by current stage label
+   - Sections: Triage, Plan, Prioritize, Implement, PR Opened, Awaiting Deploy Approval, Blocked, Done
+   - Shows: Issue number, title, request type, Trace_ID, time in current stage
+   - Actions: View details, navigate to GitHub Issue
+
+2. **Issues by Request Type Tab**
+   - Displays Issues grouped by request type
+   - Sections: Bug Reports, Feature Requests, Investigations
+   - Shows: Issue number, title, current stage, priority, Trace_ID
+   - Filters: By priority, by source (user/monitor), by date range
+   - Actions: View details, navigate to GitHub Issue
+
+3. **Pull Requests Tab**
+   - Displays Pull Requests with `agent:claude` label
+   - Shows: PR number, title, linked Issue, status, CI checks, Trace_ID
+   - Filters: By state (open/closed/merged), by date range
+   - Actions: View PR, view linked Issue, navigate to GitHub PR
+
+4. **Approvals Required Tab**
+   - Displays Items requiring human approval
+   - Sections: 
+     - Implementation Approval (Issues in `stage:awaiting-implementation-approval`)
+     - Deployment Approval (Issues in `stage:awaiting-deploy-approval`)
+   - Shows: Issue/PR number, title, request type, priority, plan summary, Trace_ID
+   - Actions: Approve, Deny, View full details
+   - Approval mechanism: Adds `stage:implement` or triggers deployment workflow
+
+5. **Workflow Runs Tab**
+   - Displays recent workflow executions
+   - Shows: Workflow name, status, conclusion, duration, triggered by, Trace_ID
+   - Filters: By workflow type (triage/plan/prioritize/implement), by status, by date range
+   - Actions: View logs, view linked Issue, retry failed workflows
+
+**Configuration**:
+
+```typescript
+// Environment variables (e.g., .env file)
+REACT_APP_GITHUB_TOKEN=ghp_xxxxxxxxxxxxx
+REACT_APP_GITHUB_OWNER=your-org
+REACT_APP_GITHUB_REPO=your-repo
+REACT_APP_API_BASE_URL=https://api.github.com
+```
+
+**Security Considerations**:
+- GitHub Personal Access Token stored in environment variables (not in code)
+- Token requires appropriate scopes: `repo`, `workflow`
+- Client-side token handling with secure storage (e.g., sessionStorage, not localStorage)
+- CORS configuration for GitHub API requests
+- Rate limiting awareness and handling
+
+**Deployment Options**:
+
+1. **Co-located with Web Server** (current setup):
+   - Build admin dashboard as static files
+   - Serve from Web Server using static file middleware
+   - Share environment variables via server configuration
+   - Example: `/admin` route serves admin dashboard
+
+2. **Independent Deployment** (future):
+   - Deploy to separate static hosting (Netlify, Vercel, S3+CloudFront)
+   - Separate repository and CI/CD pipeline
+   - Independent environment configuration
+   - No dependencies on Web Server infrastructure
+
+**Development Workflow**:
+```bash
+# Admin dashboard has its own package.json and dependencies
+cd admin-dashboard/
+npm install
+npm run dev      # Development server
+npm run build    # Production build
+npm run test     # Run tests
 ```
 
 ### Monitoring Component

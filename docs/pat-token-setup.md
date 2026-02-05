@@ -27,7 +27,9 @@ Use a Personal Access Token (PAT) instead of `GITHUB_TOKEN` for operations that 
    - **Permissions**:
      - Repository permissions:
        - **Issues**: Read and write
-       - **Contents**: Read-only
+       - **Contents**: Read-only and write
+       - **Pull Requests**: Read-only and write
+       - **Workflows**: Read-only and write
        - **Metadata**: Read-only (automatically included)
 
 4. Click "Generate token"

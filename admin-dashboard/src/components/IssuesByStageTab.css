@@ -1,0 +1,212 @@
+.tab-content {
+  text-align: left;
+}
+
+.tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.tab-header h2 {
+  margin: 0;
+}
+
+.controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.search-input {
+  padding: 0.5rem 1rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #1a1a1a;
+  color: #fff;
+  min-width: 300px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.refresh-button {
+  padding: 0.5rem 1rem;
+}
+
+.stages-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.stage-section {
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 1.5rem;
+  background-color: #1a1a1a;
+}
+
+.stage-title {
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  color: #646cff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.issue-count {
+  font-size: 0.9rem;
+  color: #888;
+  font-weight: normal;
+}
+
+.no-issues {
+  color: #666;
+  font-style: italic;
+}
+
+.issues-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.issue-card {
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 1rem;
+  background-color: #242424;
+  transition: background-color 0.2s;
+}
+
+.issue-card:hover {
+  background-color: #2a2a2a;
+}
+
+.issue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.issue-number {
+  font-weight: bold;
+  color: #646cff;
+  text-decoration: none;
+}
+
+.issue-number:hover {
+  text-decoration: underline;
+}
+
+.request-type {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.request-type.bug {
+  background-color: #ff4444;
+  color: white;
+}
+
+.request-type.feature {
+  background-color: #44ff44;
+  color: black;
+}
+
+.request-type.investigate {
+  background-color: #ffaa44;
+  color: black;
+}
+
+.issue-title {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.issue-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #888;
+  flex-wrap: wrap;
+}
+
+.trace-id {
+  font-family: monospace;
+}
+
+.error-message {
+  padding: 1rem;
+  background-color: #ff4444;
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+@media (prefers-color-scheme: light) {
+  .search-input {
+    background-color: #fff;
+    color: #000;
+    border-color: #ddd;
+  }
+
+  .stage-section {
+    background-color: #f9f9f9;
+    border-color: #ddd;
+  }
+
+  .issue-card {
+    background-color: #fff;
+    border-color: #ddd;
+  }
+
+  .issue-card:hover {
+    background-color: #f5f5f5;
+  }
+}
+
+.filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.filter-select,
+.date-input {
+  padding: 0.5rem 1rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #1a1a1a;
+  color: #fff;
+}
+
+.filter-select:focus,
+.date-input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+@media (prefers-color-scheme: light) {
+  .filter-select,
+  .date-input {
+    background-color: #fff;
+    color: #000;
+    border-color: #ddd;
+  }
+}
