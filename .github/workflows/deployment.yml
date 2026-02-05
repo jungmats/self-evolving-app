@@ -14,7 +14,7 @@ permissions:
 jobs:
   deployment:
     name: Deploy to Production
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, solops-local]
     if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'agent:claude')
     environment: production
     
@@ -22,15 +22,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      
-      - name: Install dependencies
+      - name: Set up Python environment
         run: |
           python3 -m pip install --upgrade pip
-          pip install requests
+          pip install -r requirements.txt
       
       - name: Extract PR context
         id: context
@@ -42,7 +37,7 @@ jobs:
           ISSUE_NUMBER=$(echo "${{ github.event.pull_request.body }}" | grep -oP 'Fixes #\K\d+' || echo "")
           echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
       
-      - name: Create deployment
+      - name: Create GitHub deployment record
         id: deployment
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -55,27 +50,40 @@ jobs:
             -d '{
               "ref": "${{ steps.context.outputs.git_sha }}",
               "environment": "production",
-              "description": "Deployment for PR #${{ steps.context.outputs.pr_number }}",
+              "description": "Automated deployment for PR #${{ steps.context.outputs.pr_number }}",
               "auto_merge": false,
               "required_contexts": []
             }' | jq -r '.id')
           
           echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
       
-      - name: Execute deployment
+      - name: Execute deployment with DeploymentComponent
+        id: deploy
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-          DEPLOYMENT_SECRET: ${{ secrets.DEPLOYMENT_SECRET }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+          DEPLOYMENT_BASE_PATH: ${{ vars.DEPLOYMENT_BASE_PATH || '/srv/app' }}
         run: |
-          # Placeholder for actual deployment logic
-          echo "Executing deployment for commit ${{ steps.context.outputs.git_sha }}"
-          echo "Creating release directory: /srv/app/releases/${{ steps.context.outputs.git_sha }}"
-          echo "Switching symlink: /srv/app/current -> releases/${{ steps.context.outputs.git_sha }}"
-          echo "Running health checks..."
-          echo "Deployment completed successfully (placeholder)"
+          # Execute deployment using the DeploymentComponent
+          python3 .github/scripts/deployment_executor.py deploy \
+            --git-sha="${{ steps.context.outputs.git_sha }}" \
+            --output-file="deployment_result.json"
+          
+          # Extract deployment result for subsequent steps
+          DEPLOYMENT_SUCCESS=$(jq -r '.success' deployment_result.json)
+          DEPLOYMENT_TIME=$(jq -r '.deployment_time' deployment_result.json)
+          PREVIOUS_RELEASE=$(jq -r '.previous_release // ""' deployment_result.json)
+          
+          echo "deployment_success=$DEPLOYMENT_SUCCESS" >> $GITHUB_OUTPUT
+          echo "deployment_time=$DEPLOYMENT_TIME" >> $GITHUB_OUTPUT
+          echo "previous_release=$PREVIOUS_RELEASE" >> $GITHUB_OUTPUT
+          
+          # Display deployment result
+          echo "Deployment Result:"
+          cat deployment_result.json
       
       - name: Update deployment status - success
-        if: success()
+        if: steps.deploy.outputs.deployment_success == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
@@ -85,12 +93,12 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses" \
             -d '{
               "state": "success",
-              "description": "Deployment completed successfully",
+              "description": "Deployment completed successfully in ${{ steps.deploy.outputs.deployment_time }}s",
               "environment_url": "https://production.example.com"
             }'
       
       - name: Transition issue to done
-        if: success() && steps.context.outputs.issue_number != ''
+        if: steps.deploy.outputs.deployment_success == 'true' && steps.context.outputs.issue_number != ''
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
@@ -106,39 +114,75 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/labels" \
             -d '{"labels": ["stage:done"]}'
           
-          # Add completion comment
+          # Add completion comment with deployment details
           curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/comments" \
             -d '{
-              "body": "✅ **Deployment Completed**\n\nThe implementation has been successfully deployed to production.\n\n**Deployment Details**:\n- Commit: ${{ steps.context.outputs.git_sha }}\n- Environment: production\n- Status: success\n\nThis issue is now complete."
+              "body": "✅ **Deployment Completed**\n\nThe implementation has been successfully deployed to production using atomic deployment with rollback capability.\n\n**Deployment Details**:\n- Commit: ${{ steps.context.outputs.git_sha }}\n- Environment: production\n- Deployment Time: ${{ steps.deploy.outputs.deployment_time }}s\n- Status: success\n- Method: Atomic symlink switching\n\nThis issue is now complete."
             }'
       
-      - name: Update deployment status - failure
-        if: failure()
+      - name: Handle deployment failure with rollback
+        if: steps.deploy.outputs.deployment_success == 'false'
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
+          DEPLOYMENT_BASE_PATH: ${{ vars.DEPLOYMENT_BASE_PATH || '/srv/app' }}
         run: |
+          echo "Deployment failed. Initiating rollback if previous release exists..."
+          
+          # Attempt rollback if previous release exists
+          if [ "${{ steps.deploy.outputs.previous_release }}" != "" ] && [ "${{ steps.deploy.outputs.previous_release }}" != "null" ]; then
+            echo "Rolling back to: ${{ steps.deploy.outputs.previous_release }}"
+            python3 .github/scripts/deployment_executor.py rollback \
+              --previous-release="${{ steps.deploy.outputs.previous_release }}" \
+              --output-file="rollback_result.json"
+            
+            ROLLBACK_SUCCESS=$(jq -r '.success' rollback_result.json)
+            echo "Rollback result: $ROLLBACK_SUCCESS"
+            
+            if [ "$ROLLBACK_SUCCESS" = "true" ]; then
+              ROLLBACK_MESSAGE="Deployment failed - automatic rollback to previous release completed successfully"
+            else
+              ROLLBACK_MESSAGE="Deployment failed - automatic rollback also failed, manual intervention required"
+            fi
+          else
+            ROLLBACK_MESSAGE="Deployment failed - no previous release available for rollback"
+          fi
+          
+          # Update GitHub deployment status
           curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses" \
-            -d '{
-              "state": "failure",
-              "description": "Deployment failed - automatic rollback initiated"
-            }'
+            -d "{
+              \"state\": \"failure\",
+              \"description\": \"$ROLLBACK_MESSAGE\"
+            }"
+      
+      - name: Transition issue to blocked on failure
+        if: steps.deploy.outputs.deployment_success == 'false' && steps.context.outputs.issue_number != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          # Remove awaiting-deploy-approval label and add blocked label
+          curl -X DELETE \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/labels/stage%3Aawaiting-deploy-approval"
           
-          # Transition linked issue to blocked if deployment fails
-          if [ "${{ steps.context.outputs.issue_number }}" != "" ]; then
-            curl -X DELETE \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/labels/stage%3Aawaiting-deploy-approval"
-            
-            curl -X POST \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/labels" \
-              -d '{"labels": ["stage:blocked"]}'
-          fi
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/labels" \
+            -d '{"labels": ["stage:blocked"]}'
+          
+          # Add failure comment with details
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.context.outputs.issue_number }}/comments" \
+            -d '{
+              "body": "❌ **Deployment Failed**\n\nThe deployment to production failed and the issue has been moved to blocked status.\n\n**Failure Details**:\n- Commit: ${{ steps.context.outputs.git_sha }}\n- Environment: production\n- Status: failed\n- Rollback Status: See deployment logs\n\n**Next Steps**:\n1. Review deployment logs for failure details\n2. Fix any deployment issues\n3. Manual intervention may be required\n4. Issue can be retried once problems are resolved"
+            }'

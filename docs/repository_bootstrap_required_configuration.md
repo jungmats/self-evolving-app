@@ -116,26 +116,57 @@ The system now uses Claude CLI integration instead of API keys.
 No Claude-specific secrets are required - Claude CLI handles authentication locally.
 
 For GitHub integration:
-* `GITHUB_TOKEN` - Personal Access Token for GitHub API access (if not using environment variables)
+* `PAT_TOKEN` - Personal Access Token for GitHub API access (used by workflows)
 
 ---
 
-#### Required Secrets (Deployment)
+#### Deployment Configuration
 
-Prefer storing deployment secrets under the `production` environment:
+The deployment system uses environment variables for configuration. Choose one of these approaches:
 
+**Option A: Local Environment (Recommended for Development)**
+Set the deployment path on your self-hosted runner machine:
+
+```bash
+# Add to your shell profile (~/.zshrc, ~/.bashrc)
+export DEPLOYMENT_BASE_PATH="/Users/$(whoami)/deployments"
+
+# Create the deployment directory
+mkdir -p "$DEPLOYMENT_BASE_PATH"
+
+# Restart your runner to pick up the environment
+cd /path/to/actions-runner && ./run.sh
 ```
-Settings → Environments → production → Environment secrets
+
+**Option B: GitHub Repository Variable**
+Set via GitHub UI or CLI:
+
+```bash
+# Via GitHub CLI
+gh variable set DEPLOYMENT_BASE_PATH --body "/path/to/deployment/directory"
+
+# Or via GitHub UI:
+# Settings → Secrets and variables → Actions → Variables tab
+# Name: DEPLOYMENT_BASE_PATH
+# Value: /path/to/deployment/directory
 ```
 
-* `DEPLOY_SSH_PRIVATE_KEY`
-  SSH private key for the deploy user (no passphrase, or handled explicitly).
-* `DEPLOY_HOST`
-  Server hostname or IP.
-* `DEPLOY_USER`
-  SSH user (e.g. `deploy`).
-* `DEPLOY_KNOWN_HOSTS`
-  Output of `ssh-keyscan -H <host>` (prevents trusting unknown hosts).
+**Important**: The deployment directory must exist and be writable by the runner.
+
+For detailed deployment configuration, see: [docs/deployment-configuration.md](deployment-configuration.md)
+
+---
+
+#### Legacy Deployment Secrets (Not Used)
+
+~~The following deployment secrets are no longer required with the new deployment system:~~
+
+* ~~`DEPLOY_SSH_PRIVATE_KEY`~~
+* ~~`DEPLOY_HOST`~~  
+* ~~`DEPLOY_USER`~~
+* ~~`DEPLOY_KNOWN_HOSTS`~~
+
+The new deployment system uses local atomic deployments with symlink switching.
 
 ---
 
@@ -143,9 +174,9 @@ Settings → Environments → production → Environment secrets
 
 These are non-sensitive and may be added as variables:
 
-* `DEPLOY_BASE_DEPLOYMENT_PATH` (e.g. `/srv/app`)
-* `PYTHON_VERSION`
-* `NODE_VERSION`
+* `DEPLOYMENT_BASE_PATH` - Deployment directory path (alternative to local environment)
+* `PYTHON_VERSION` - Python version for workflows
+* `NODE_VERSION` - Node.js version for workflows
 
 ---
 
@@ -155,9 +186,19 @@ After completing the steps above:
 
 * Workflows can apply labels and manage issues/PRs
 * Only PR merges can update `main`
-* Merging a PR automatically triggers deployment
+* Merging a PR automatically triggers deployment to the configured deployment directory
 * Claude CLI provides AI capabilities with repository context
+* Deployment uses atomic symlink switching with rollback capability
 * The repository is ready for autonomous evolution workflows
+
+**Next Steps:**
+1. Configure deployment directory (see deployment configuration section above)
+2. Set up self-hosted runner with Claude CLI
+3. Test the system by creating and merging a feature request
+
+For detailed setup instructions, see:
+- [docs/deployment-configuration.md](deployment-configuration.md) - Deployment setup
+- [docs/self-hosted-runner-setup.md](self-hosted-runner-setup.md) - Runner setup
 
 ---
 

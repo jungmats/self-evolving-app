@@ -62,6 +62,19 @@ class PolicyDecision(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class Deployment(Base):
+    """Deployment model for tracking deployment history and status."""
+    __tablename__ = "deployments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    git_sha = Column(String, nullable=False, index=True)
+    release_path = Column(String, nullable=False)
+    status = Column(String, nullable=False)  # pending, success, failed, rolled_back
+    deployment_time = Column(Integer, nullable=True)  # Duration in seconds
+    health_check_result = Column(Text, nullable=True)  # JSON blob for health check details
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 def generate_trace_id() -> str:
     """Generate a unique Trace_ID for tracking requests."""
     return f"trace-{uuid.uuid4().hex[:12]}"
